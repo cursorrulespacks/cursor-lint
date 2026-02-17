@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const path = require('path');
-const { lint } = require('./index');
+const { lintProject } = require('./index');
 
 const args = process.argv.slice(2);
 
@@ -32,45 +32,58 @@ if (args.includes('--version') || args.includes('-v')) {
 
 const dir = args[0] ? path.resolve(args[0]) : process.cwd();
 
-console.log(`\n🔍 cursor-lint v${require('../package.json').version}\n`);
-console.log(`Scanning ${dir}...\n`);
-
-const result = lint(dir);
-
-if (result.noFiles) {
-  console.log('No rule files found (.cursorrules or .cursor/rules/*.mdc)\n');
-  process.exit(0);
-}
-
 const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
 const GREEN = '\x1b[32m';
 const DIM = '\x1b[2m';
 const RESET = '\x1b[0m';
 
-for (const file of result.files) {
-  console.log(`${file.file}`);
+async function main() {
+  console.log(`\n🔍 cursor-lint v${require('../package.json').version}\n`);
+  console.log(`Scanning ${dir}...\n`);
 
-  if (file.issues.length === 0) {
-    console.log(`  ${GREEN}✓ All checks passed${RESET}`);
-  } else {
-    for (const issue of file.issues) {
-      const icon = issue.type === 'error' ? `${RED}✗${RESET}` : `${YELLOW}⚠${RESET}`;
-      const lineInfo = issue.line ? ` ${DIM}(line ${issue.line})${RESET}` : '';
-      console.log(`  ${icon} ${issue.message}${lineInfo}`);
-      if (issue.hint) {
-        console.log(`    ${DIM}→ ${issue.hint}${RESET}`);
+  const results = await lintProject(dir);
+
+  let totalErrors = 0;
+  let totalWarnings = 0;
+  let totalPassed = 0;
+
+  for (const result of results) {
+    const relPath = path.relative(dir, result.file) || result.file;
+    console.log(relPath);
+
+    if (result.issues.length === 0) {
+      console.log(`  ${GREEN}✓ All checks passed${RESET}`);
+      totalPassed++;
+    } else {
+      for (const issue of result.issues) {
+        const icon = issue.severity === 'error' ? `${RED}✗${RESET}` : `${YELLOW}⚠${RESET}`;
+        const lineInfo = issue.line ? ` ${DIM}(line ${issue.line})${RESET}` : '';
+        console.log(`  ${icon} ${issue.message}${lineInfo}`);
+        if (issue.hint) {
+          console.log(`    ${DIM}→ ${issue.hint}${RESET}`);
+        }
       }
+      const errors = result.issues.filter(i => i.severity === 'error').length;
+      const warnings = result.issues.filter(i => i.severity === 'warning').length;
+      totalErrors += errors;
+      totalWarnings += warnings;
+      if (errors === 0 && warnings === 0) totalPassed++;
     }
+    console.log();
   }
-  console.log();
+
+  console.log('─'.repeat(50));
+  const parts = [];
+  if (totalErrors > 0) parts.push(`${RED}${totalErrors} error${totalErrors !== 1 ? 's' : ''}${RESET}`);
+  if (totalWarnings > 0) parts.push(`${YELLOW}${totalWarnings} warning${totalWarnings !== 1 ? 's' : ''}${RESET}`);
+  if (totalPassed > 0) parts.push(`${GREEN}${totalPassed} passed${RESET}`);
+  console.log(parts.join(', ') + '\n');
+
+  process.exit(totalErrors > 0 ? 1 : 0);
 }
 
-console.log('─'.repeat(50));
-const parts = [];
-if (result.totalErrors > 0) parts.push(`${RED}${result.totalErrors} error${result.totalErrors !== 1 ? 's' : ''}${RESET}`);
-if (result.totalWarnings > 0) parts.push(`${YELLOW}${result.totalWarnings} warning${result.totalWarnings !== 1 ? 's' : ''}${RESET}`);
-if (result.totalPassed > 0) parts.push(`${GREEN}${result.totalPassed} passed${RESET}`);
-console.log(parts.join(', ') + '\n');
-
-process.exit(result.totalErrors > 0 ? 1 : 0);
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
