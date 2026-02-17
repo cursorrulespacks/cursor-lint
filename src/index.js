@@ -28,9 +28,6 @@ const VAGUE_PATTERNS = [
   'be concise',
 ];
 
-const MAX_LINES_WARNING = 150;
-const MAX_LINES_ERROR = 300;
-
 function parseFrontmatter(content) {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return { found: false, data: null, error: null };
@@ -65,7 +62,6 @@ function parseFrontmatter(content) {
 async function lintMdcFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const issues = [];
-  const lines = content.split('\n');
 
   const fm = parseFrontmatter(content);
 
@@ -95,13 +91,6 @@ async function lintMdcFile(filePath) {
     }
   }
 
-  // File length
-  if (lines.length > MAX_LINES_ERROR) {
-    issues.push({ severity: 'error', message: `File is ${lines.length} lines long — may exceed context window`, hint: 'Split into multiple .mdc files' });
-  } else if (lines.length > MAX_LINES_WARNING) {
-    issues.push({ severity: 'warning', message: `File is ${lines.length} lines long — consider splitting`, hint: 'Shorter files are more reliably loaded into context' });
-  }
-
   return { file: filePath, issues };
 }
 
@@ -123,13 +112,6 @@ async function lintCursorrules(filePath) {
       const lineNum = content.slice(0, idx).split('\n').length;
       issues.push({ severity: 'warning', message: `Vague rule detected: "${pattern}"`, line: lineNum });
     }
-  }
-
-  const lines = content.split('\n');
-  if (lines.length > MAX_LINES_ERROR) {
-    issues.push({ severity: 'error', message: `File is ${lines.length} lines long — may exceed context window` });
-  } else if (lines.length > MAX_LINES_WARNING) {
-    issues.push({ severity: 'warning', message: `File is ${lines.length} lines long — consider splitting` });
   }
 
   return { file: filePath, issues };

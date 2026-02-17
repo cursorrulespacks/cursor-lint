@@ -151,25 +151,6 @@ Do something.
   assert(missingFrontmatter, 'Should detect missing frontmatter');
 });
 
-test('warns about long files', async () => {
-  const mdcPath = path.join(TEST_DIR, '.cursor', 'rules', 'long.mdc');
-  const longContent = `---
-description: Long file
-alwaysApply: true
----
-
-# Long File
-` + 'Line of content.\n'.repeat(250);
-  
-  fs.writeFileSync(mdcPath, longContent);
-  
-  const result = await lintMdcFile(mdcPath);
-  const lengthWarning = result.issues.some(i => 
-    i.message.includes('long')
-  );
-  assert(lengthWarning, 'Should warn about file length');
-});
-
 test('detects bad glob syntax', async () => {
   const mdcPath = path.join(TEST_DIR, '.cursor', 'rules', 'bad-glob.mdc');
   fs.writeFileSync(mdcPath, `---

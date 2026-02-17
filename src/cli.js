@@ -19,7 +19,6 @@ Checks:
   ✗ Bad YAML frontmatter / glob syntax
   ⚠ .cursorrules ignored in agent mode
   ⚠ Vague rules ("write clean code", etc.)
-  ⚠ Files too long for context window
 `);
   process.exit(0);
 }
