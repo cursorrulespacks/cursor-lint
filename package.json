@@ -1,0 +1,29 @@
+{
+  "name": "cursor-lint",
+  "version": "0.1.0",
+  "description": "Lint your Cursor rules — catch common mistakes before they break your workflow",
+  "main": "src/index.js",
+  "bin": {
+    "cursor-lint": "src/cli.js"
+  },
+  "keywords": [
+    "cursor",
+    "cursor-ai",
+    "cursorrules",
+    "mdc",
+    "linter",
+    "developer-tools"
+  ],
+  "author": "nedcodes",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cursorrulespacks/cursor-lint.git"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "files": [
+    "src/"
+  ]
+}
