@@ -81,10 +81,14 @@ cursor-lint --version      Show version
 
 Every check in cursor-lint comes from [actual experiments](https://dev.to/nedcodes) testing what Cursor does and doesn't follow. Not guesswork — data.
 
+## Need a deeper review?
+
+cursor-lint catches structural issues. For a full review of your rules, project structure, and model settings, I do [$50 async audits](https://cursorrulespacks.github.io/).
+
 ## License
 
 MIT
 
 ---
 
-Made by [nedcodes](https://dev.to/nedcodes)
+Made by [nedcodes](https://dev.to/nedcodes) · [Free rules collection](https://github.com/cursorrulespacks/cursorrules-collection) · [Setup audits](https://cursorrulespacks.github.io/)
