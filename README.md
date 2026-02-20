@@ -92,3 +92,11 @@ MIT
 ---
 
 Made by [nedcodes](https://dev.to/nedcodes) · [Free rules collection](https://github.com/cursorrulespacks/cursorrules-collection) · [Setup audits](https://cursorrulespacks.github.io/)
+
+---
+
+## Related
+
+- [cursorrules-collection](https://github.com/cursorrulespacks/cursorrules-collection) — 77+ free .mdc rules
+- [Cursor Setup Audit](https://cursorrulespacks.gumroad.com/l/cursor-setup-audit) — Professional review of your rules setup ($50)
+- [Articles on Dev.to](https://dev.to/nedcodes) — Guides on writing effective Cursor rules
