@@ -4,8 +4,9 @@ const path = require('path');
 const { lintProject } = require('./index');
 const { verifyProject } = require('./verify');
 const { initProject } = require('./init');
+const { fixProject } = require('./fix');
 
-const VERSION = '0.3.1';
+const VERSION = '0.4.0';
 
 const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
@@ -28,6 +29,7 @@ ${YELLOW}Options:${RESET}
   --version, -v  Show version number
   --verify       Check if code follows rules with verify: blocks
   --init         Generate starter .mdc rules (auto-detects your stack)
+  --fix          Auto-fix common issues (missing frontmatter, alwaysApply)
 
 ${YELLOW}What it checks (default):${RESET}
   • .cursorrules files (warns about agent mode compatibility)
@@ -81,8 +83,43 @@ async function main() {
   const cwd = process.cwd();
   const isVerify = args.includes('--verify');
   const isInit = args.includes('--init');
+  const isFix = args.includes('--fix');
 
-  if (isInit) {
+  if (isFix) {
+    console.log(`\n🔧 cursor-lint v${VERSION} --fix\n`);
+    console.log(`Scanning ${cwd} for fixable issues...\n`);
+
+    const results = await fixProject(cwd);
+
+    if (results.length === 0) {
+      console.log(`${YELLOW}No .mdc files found in .cursor/rules/${RESET}\n`);
+      process.exit(0);
+    }
+
+    let totalFixed = 0;
+    for (const result of results) {
+      const relPath = path.relative(cwd, result.file) || result.file;
+      if (result.changes.length > 0) {
+        console.log(`${GREEN}✓${RESET} ${relPath}`);
+        for (const change of result.changes) {
+          console.log(`  ${DIM}→ ${change}${RESET}`);
+        }
+        totalFixed++;
+      } else {
+        console.log(`${DIM}  ${relPath} — nothing to fix${RESET}`);
+      }
+    }
+
+    console.log();
+    console.log('─'.repeat(50));
+    if (totalFixed > 0) {
+      console.log(`${GREEN}Fixed ${totalFixed} file(s)${RESET}. Run cursor-lint to verify.\n`);
+    } else {
+      console.log(`${GREEN}All files look good — nothing to fix${RESET}\n`);
+    }
+    process.exit(0);
+
+  } else if (isInit) {
     console.log(`\n🔍 cursor-lint v${VERSION} --init\n`);
     console.log(`Detecting stack in ${cwd}...\n`);
 
