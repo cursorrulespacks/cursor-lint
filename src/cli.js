@@ -8,7 +8,7 @@ const { fixProject } = require('./fix');
 const { generateRules } = require('./generate');
 const { checkVersions, checkRuleVersionMismatches } = require('./versions');
 
-const VERSION = '0.8.0';
+const VERSION = '0.9.0';
 
 const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
@@ -207,20 +207,35 @@ async function main() {
       console.log(`${CYAN}Detected:${RESET} ${results.detected.join(', ')}\n`);
     } else {
       console.log(`${YELLOW}No recognized stack detected.${RESET}`);
-      console.log(`${DIM}Supports: package.json, tsconfig.json, requirements.txt, Cargo.toml, go.mod, Dockerfile${RESET}\n`);
+      console.log(`${DIM}Supports: package.json, tsconfig.json, requirements.txt, pyproject.toml,${RESET}`);
+      console.log(`${DIM}Cargo.toml, go.mod, Gemfile, composer.json, pom.xml, build.gradle,${RESET}`);
+      console.log(`${DIM}Dockerfile, pubspec.yaml, mix.exs, build.sbt, *.csproj, and more${RESET}\n`);
       process.exit(0);
     }
 
-    if (results.created.length > 0) {
-      console.log(`${GREEN}Downloaded:${RESET}`);
-      for (const r of results.created) {
+    const stackCreated = results.created.filter(r => !r.stack.startsWith('best-practice:'));
+    const practiceCreated = results.created.filter(r => r.stack.startsWith('best-practice:'));
+    const stackSkipped = results.skipped.filter(r => !r.stack.startsWith('best-practice:'));
+    const practiceSkipped = results.skipped.filter(r => r.stack.startsWith('best-practice:'));
+
+    if (stackCreated.length > 0) {
+      console.log(`${GREEN}Downloaded (stack rules):${RESET}`);
+      for (const r of stackCreated) {
         console.log(`  ${GREEN}✓${RESET} .cursor/rules/${r.file} ${DIM}(${r.stack})${RESET}`);
       }
     }
 
-    if (results.skipped.length > 0) {
+    if (practiceCreated.length > 0) {
+      console.log(`\n${GREEN}Downloaded (best practices):${RESET}`);
+      for (const r of practiceCreated) {
+        const label = r.stack.replace('best-practice: ', '');
+        console.log(`  ${GREEN}✓${RESET} .cursor/rules/${r.file} ${DIM}(${label})${RESET}`);
+      }
+    }
+
+    if (stackSkipped.length + practiceSkipped.length > 0) {
       console.log(`\n${YELLOW}Skipped (already exist):${RESET}`);
-      for (const r of results.skipped) {
+      for (const r of [...stackSkipped, ...practiceSkipped]) {
         console.log(`  ${YELLOW}⚠${RESET} .cursor/rules/${r.file}`);
       }
     }
