@@ -6,7 +6,7 @@ const { verifyProject } = require('./verify');
 const { initProject } = require('./init');
 const { fixProject } = require('./fix');
 
-const VERSION = '0.4.0';
+const VERSION = '0.4.1';
 
 const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
@@ -246,6 +246,8 @@ async function main() {
     if (totalErrors > 0) {
       console.log(`${DIM}Need help fixing these? Get a full setup review:${RESET}`);
       console.log(`${CYAN}https://cursorrulespacks.gumroad.com/l/cursor-setup-audit${RESET}\n`);
+    } else if (totalPassed > 0) {
+      console.log(`${DIM}If cursor-lint saved you time: ${CYAN}https://github.com/cursorrulespacks/cursor-lint${RESET} ${DIM}(⭐ helps others find it)${RESET}\n`);
     }
 
     process.exit(totalErrors > 0 ? 1 : 0);

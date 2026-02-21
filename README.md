@@ -5,6 +5,8 @@
 
 Lint your [Cursor](https://cursor.com) rules. Catch common mistakes before they silently break your workflow.
 
+![cursor-lint demo](demo.png)
+
 ```bash
 npx cursor-lint
 ```
