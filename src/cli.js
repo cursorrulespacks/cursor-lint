@@ -6,8 +6,9 @@ const { verifyProject } = require('./verify');
 const { initProject } = require('./init');
 const { fixProject } = require('./fix');
 const { generateRules } = require('./generate');
+const { checkVersions, checkRuleVersionMismatches } = require('./versions');
 
-const VERSION = '0.7.0';
+const VERSION = '0.8.0';
 
 const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
@@ -33,6 +34,7 @@ ${YELLOW}Options:${RESET}
   --fix          Auto-fix common issues (missing frontmatter, alwaysApply)
   --generate     Auto-detect stack & download matching .mdc rules from GitHub
   --order        Show rule load order, priority tiers, and token estimates
+  --version-check  Detect installed package versions and show relevant rule tips
 
 ${YELLOW}What it checks (default):${RESET}
   • .cursorrules files (warns about agent mode compatibility)
@@ -90,8 +92,45 @@ async function main() {
   const isFix = args.includes('--fix');
   const isGenerate = args.includes('--generate');
   const isOrder = args.includes('--order');
+  const isVersionCheck = args.includes('--version-check');
 
-  if (isOrder) {
+  if (isVersionCheck) {
+    console.log(`\n📦 cursor-lint v${VERSION} --version-check\n`);
+    console.log(`Detecting installed versions in ${cwd}...\n`);
+
+    const versionNotes = checkVersions(cwd);
+    const mismatches = checkRuleVersionMismatches(cwd);
+
+    if (versionNotes.length === 0 && mismatches.length === 0) {
+      console.log(`${YELLOW}No version-specific notes found.${RESET}`);
+      console.log(`${DIM}Supports: package.json, requirements.txt, pyproject.toml${RESET}\n`);
+      process.exit(0);
+    }
+
+    if (versionNotes.length > 0) {
+      console.log(`${CYAN}Version-specific features available:${RESET}\n`);
+      for (const item of versionNotes) {
+        console.log(`  ${GREEN}${item.package}${RESET} ${DIM}(${item.installedVersion})${RESET}`);
+        for (const note of item.notes) {
+          console.log(`    ${DIM}→${RESET} ${note}`);
+        }
+        console.log();
+      }
+    }
+
+    if (mismatches.length > 0) {
+      console.log(`${YELLOW}Version mismatches in your rules:${RESET}\n`);
+      for (const m of mismatches) {
+        console.log(`  ${YELLOW}⚠${RESET} ${m.file}:${m.line} — ${m.message}`);
+      }
+      console.log();
+    }
+
+    console.log('─'.repeat(50));
+    console.log(`${DIM}Use these notes to customize your .mdc rules for your exact versions.${RESET}\n`);
+    process.exit(mismatches.length > 0 ? 1 : 0);
+
+  } else if (isOrder) {
     const { showLoadOrder } = require('./order');
     console.log(`\n📋 cursor-lint v${VERSION} --order\n`);
     const dir = args.find(a => !a.startsWith('-')) ? path.resolve(args.find(a => !a.startsWith('-'))) : cwd;

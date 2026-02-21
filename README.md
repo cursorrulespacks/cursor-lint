@@ -77,9 +77,42 @@ cursor-lint exits with code 1 when errors are found. Add it to your pipeline:
 ## Options
 
 ```
-cursor-lint [directory]    Lint rules in directory (default: current dir)
-cursor-lint --help         Show help
-cursor-lint --version      Show version
+cursor-lint [directory]       Lint rules in directory (default: current dir)
+cursor-lint --fix             Auto-fix common issues (missing frontmatter, alwaysApply)
+cursor-lint --generate        Auto-detect stack & download matching rules from collection
+cursor-lint --verify          Check if code follows rules with verify: blocks
+cursor-lint --order           Show rule load order, priority tiers, and token estimates
+cursor-lint --version-check   Detect installed versions, show relevant features & rule mismatches
+cursor-lint --init            Generate starter rules (auto-detects your stack)
+cursor-lint --help            Show help
+cursor-lint --version         Show version
+```
+
+### --version-check
+
+Reads your `package.json`, `requirements.txt`, or `pyproject.toml` and tells you:
+1. **Version-specific features** available in your installed packages (e.g., "React 19+: use useActionState")
+2. **Rule mismatches** — if your `.mdc` rules reference version features your installed packages don't support
+
+```bash
+npx cursor-lint --version-check
+```
+
+```
+📦 cursor-lint v0.8.0 --version-check
+
+Version-specific features available:
+
+  react (^19.0.0)
+    → React 19+: use useActionState (replaces useFormState), use() hook
+    → React 18+: useId, useSyncExternalStore, automatic batching
+
+  next (^14.2.0)
+    → Next.js 14+: Server Actions stable, partial prerendering (preview)
+
+Version mismatches in your rules:
+
+  ⚠ nextjs.mdc:5 — Rule references 15+ but next ^14.2.0 is installed
 ```
 
 ## Based on Real Testing
@@ -102,6 +135,6 @@ Made by [nedcodes](https://dev.to/nedcodes) · [Free rules collection](https://g
 
 ## Related
 
-- [cursorrules-collection](https://github.com/cursorrulespacks/cursorrules-collection) — 77+ free .mdc rules
+- [cursorrules-collection](https://github.com/cursorrulespacks/cursorrules-collection) — 104 free .mdc rules
 - [Cursor Setup Audit](https://cursorrulespacks.gumroad.com/l/cursor-setup-audit) — Professional review of your rules setup ($50)
 - [Articles on Dev.to](https://dev.to/nedcodes) — Guides on writing effective Cursor rules
