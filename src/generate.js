@@ -4,6 +4,32 @@ const https = require('https');
 
 const BASE_URL = 'https://raw.githubusercontent.com/nedcodes-ok/cursorrules-collection/main/rules-mdc/';
 
+// Version-specific rule overrides: if user has react 19, use react-19.mdc instead of react.mdc
+const VERSION_RULES = {
+  'react': {
+    '19': 'frameworks/react-19.mdc',
+    '18': 'frameworks/react-18.mdc',
+  },
+  'next': {
+    '15': 'frameworks/nextjs-15.mdc',
+    '14': 'frameworks/nextjs-14.mdc',
+    '13': 'frameworks/nextjs-13.mdc',
+  },
+  'vue': {
+    '3': 'frameworks/vue-3.mdc',
+    '2': 'frameworks/vue-2.mdc',
+  },
+  '@angular/core': {
+    '19': 'frameworks/angular-19.mdc',
+    '18': 'frameworks/angular-18.mdc',
+    '17': 'frameworks/angular-17.mdc',
+  },
+  'svelte': {
+    '5': 'frameworks/svelte-5.mdc',
+    '4': 'frameworks/svelte-4.mdc',
+  },
+};
+
 // package.json dependencies → rule files
 const PKG_DEP_MAP = {
   // Frameworks
@@ -189,6 +215,7 @@ function detectStack(cwd) {
   const detected = [];
   const rules = new Map(); // rulePath -> stackName
   const allDetectedDeps = [];
+  const versions = {}; // dep -> version string
 
   // package.json
   const pkgPath = path.join(cwd, 'package.json');
@@ -201,7 +228,21 @@ function detectStack(cwd) {
         if (pkgDeps[dep]) {
           detected.push(dep);
           allDetectedDeps.push(dep);
-          rules.set(rule, dep);
+          
+          // Extract version
+          const rawVersion = pkgDeps[dep];
+          versions[dep] = rawVersion;
+          
+          // Parse major version (strip ^, ~, >=, etc.)
+          const versionMatch = rawVersion.match(/(\d+)/);
+          const majorVersion = versionMatch ? versionMatch[1] : null;
+          
+          // Check if version-specific rule exists
+          if (majorVersion && VERSION_RULES[dep] && VERSION_RULES[dep][majorVersion]) {
+            rules.set(VERSION_RULES[dep][majorVersion], dep);
+          } else {
+            rules.set(rule, dep);
+          }
         }
       }
     } catch {}
@@ -406,18 +447,19 @@ function detectStack(cwd) {
     }
   }
 
-  return { detected, rules };
+  return { detected, rules, versions };
 }
 
 async function generateRules(cwd) {
-  const { detected, rules } = detectStack(cwd);
+  const { detected, rules, versions } = detectStack(cwd);
   const rulesDir = path.join(cwd, '.cursor', 'rules');
   const created = [];
   const skipped = [];
   const failed = [];
+  const fallbacks = [];
 
   if (rules.size === 0) {
-    return { detected, created, skipped, failed };
+    return { detected, created, skipped, failed, versions };
   }
 
   fs.mkdirSync(rulesDir, { recursive: true });
@@ -437,12 +479,129 @@ async function generateRules(cwd) {
       fs.writeFileSync(destPath, content, 'utf8');
       created.push({ file: filename, stack: stackName });
     } catch (err) {
-      failed.push({ file: filename, stack: stackName, error: err.message });
+      // Try fallback to generic rule if this was a version-specific rule
+      const genericRule = PKG_DEP_MAP[stackName];
+      if (genericRule && genericRule !== rulePath) {
+        try {
+          const fallbackUrl = BASE_URL + genericRule;
+          const content = await fetchFile(fallbackUrl);
+          const genericFilename = path.basename(genericRule);
+          const genericDestPath = path.join(rulesDir, genericFilename);
+          fs.writeFileSync(genericDestPath, content, 'utf8');
+          created.push({ file: genericFilename, stack: stackName });
+          fallbacks.push({ from: filename, to: genericFilename, stack: stackName });
+        } catch (fallbackErr) {
+          failed.push({ file: filename, stack: stackName, error: err.message });
+        }
+      } else {
+        failed.push({ file: filename, stack: stackName, error: err.message });
+      }
     }
   }
 
-  return { detected, created, skipped, failed };
+  return { detected, created, skipped, failed, versions, fallbacks };
 }
+
+const STACK_PRESETS = {
+  't3': {
+    name: 'T3 Stack',
+    description: 'Next.js + TypeScript + Tailwind + tRPC + Prisma + NextAuth',
+    rules: [
+      'languages/typescript.mdc',
+      'frameworks/nextjs.mdc',
+      'frameworks/tailwind-css.mdc',
+      'frameworks/zod.mdc',
+      'frameworks/t3-stack.mdc',
+      'tools/trpc.mdc',
+      'tools/prisma.mdc',
+      'tools/nextauth.mdc',
+      'practices/clean-code.mdc',
+      'practices/error-handling.mdc',
+    ],
+  },
+  'mern': {
+    name: 'MERN Stack',
+    description: 'MongoDB + Express + React + Node.js',
+    rules: [
+      'languages/typescript.mdc',
+      'languages/javascript.mdc',
+      'frameworks/react.mdc',
+      'frameworks/express.mdc',
+      'tools/mongodb.mdc',
+      'practices/api-design.mdc',
+      'practices/error-handling.mdc',
+      'practices/clean-code.mdc',
+    ],
+  },
+  'fastapi': {
+    name: 'Python FastAPI',
+    description: 'FastAPI + Pydantic + SQLAlchemy + pytest',
+    rules: [
+      'languages/python.mdc',
+      'frameworks/fastapi.mdc',
+      'tools/pydantic.mdc',
+      'tools/sqlalchemy.mdc',
+      'tools/pytest.mdc',
+      'practices/api-design.mdc',
+      'practices/error-handling.mdc',
+      'practices/clean-code.mdc',
+    ],
+  },
+  'sveltekit': {
+    name: 'SvelteKit Full Stack',
+    description: 'SvelteKit + Svelte + Tailwind + Prisma + TypeScript',
+    rules: [
+      'languages/typescript.mdc',
+      'frameworks/sveltekit.mdc',
+      'frameworks/svelte.mdc',
+      'frameworks/tailwind-css.mdc',
+      'tools/prisma.mdc',
+      'practices/clean-code.mdc',
+      'practices/error-handling.mdc',
+    ],
+  },
+  'rails': {
+    name: 'Ruby on Rails',
+    description: 'Rails + Ruby + PostgreSQL + Testing',
+    rules: [
+      'languages/ruby.mdc',
+      'frameworks/rails.mdc',
+      'tools/postgresql.mdc',
+      'practices/testing.mdc',
+      'practices/api-design.mdc',
+      'practices/database-migrations.mdc',
+      'practices/clean-code.mdc',
+    ],
+  },
+  'nextjs': {
+    name: 'Next.js Full Stack',
+    description: 'Next.js + React + TypeScript + Tailwind + Prisma',
+    rules: [
+      'languages/typescript.mdc',
+      'frameworks/nextjs.mdc',
+      'frameworks/react.mdc',
+      'frameworks/tailwind-css.mdc',
+      'tools/prisma.mdc',
+      'practices/clean-code.mdc',
+      'practices/performance.mdc',
+      'practices/error-handling.mdc',
+    ],
+  },
+  'django': {
+    name: 'Django Full Stack',
+    description: 'Django + Python + PostgreSQL + pytest',
+    rules: [
+      'languages/python.mdc',
+      'frameworks/django.mdc',
+      'tools/postgresql.mdc',
+      'tools/pytest.mdc',
+      'practices/api-design.mdc',
+      'practices/database-migrations.mdc',
+      'practices/security.mdc',
+      'practices/clean-code.mdc',
+    ],
+  },
+};
 
 const SKILLS_API = 'https://skills.sh/api/search';
 
@@ -497,4 +656,43 @@ async function suggestSkills(detected) {
   return allResults.slice(0, 10);
 }
 
-module.exports = { generateRules, suggestSkills };
+function listPresets() {
+  return STACK_PRESETS;
+}
+
+async function generateFromPreset(cwd, presetName) {
+  const preset = STACK_PRESETS[presetName];
+  if (!preset) {
+    throw new Error(`Unknown preset: ${presetName}`);
+  }
+
+  const rulesDir = path.join(cwd, '.cursor', 'rules');
+  const created = [];
+  const skipped = [];
+  const failed = [];
+
+  fs.mkdirSync(rulesDir, { recursive: true });
+
+  for (const rulePath of preset.rules) {
+    const filename = path.basename(rulePath);
+    const destPath = path.join(rulesDir, filename);
+
+    if (fs.existsSync(destPath)) {
+      skipped.push({ file: filename, rule: rulePath });
+      continue;
+    }
+
+    try {
+      const url = BASE_URL + rulePath;
+      const content = await fetchFile(url);
+      fs.writeFileSync(destPath, content, 'utf8');
+      created.push({ file: filename, rule: rulePath });
+    } catch (err) {
+      failed.push({ file: filename, rule: rulePath, error: err.message });
+    }
+  }
+
+  return { preset: presetName, presetInfo: preset, created, skipped, failed };
+}
+
+module.exports = { generateRules, suggestSkills, listPresets, generateFromPreset };

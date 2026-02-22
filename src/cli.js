@@ -5,10 +5,10 @@ const { lintProject } = require('./index');
 const { verifyProject } = require('./verify');
 const { initProject } = require('./init');
 const { fixProject } = require('./fix');
-const { generateRules, suggestSkills } = require('./generate');
+const { generateRules, suggestSkills, listPresets, generateFromPreset } = require('./generate');
 const { checkVersions, checkRuleVersionMismatches } = require('./versions');
 
-const VERSION = '0.12.0';
+const VERSION = '0.13.0';
 
 const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
@@ -34,6 +34,8 @@ ${YELLOW}Options:${RESET}
   --init         Generate starter .mdc rules (auto-detects your stack)
   --fix          Auto-fix common issues (missing frontmatter, alwaysApply)
   --generate     Auto-detect stack & download matching .mdc rules from GitHub
+  --generate --preset <name>  Install rules for a popular stack preset
+  --generate --preset list    Show available presets
   --order        Show rule load order, priority tiers, and token estimates
   --version-check  Detect installed package versions and show relevant rule tips
 
@@ -208,13 +210,85 @@ async function main() {
     process.exit(0);
 
   } else if (isGenerate) {
+    // Check for --preset flag
+    const presetIndex = args.indexOf('--preset');
+    const hasPreset = presetIndex !== -1;
+    const presetValue = hasPreset ? args[presetIndex + 1] : null;
+
+    // Handle --preset list
+    if (hasPreset && presetValue === 'list') {
+      console.log(`\n🚀 cursor-lint v${VERSION} --generate --preset list\n`);
+      console.log(`${CYAN}Available presets:${RESET}\n`);
+      
+      const presets = listPresets();
+      for (const [key, preset] of Object.entries(presets)) {
+        const paddedKey = key.padEnd(12);
+        console.log(`  ${GREEN}${paddedKey}${RESET} ${preset.name} — ${DIM}${preset.description}${RESET}`);
+      }
+      
+      console.log(`\n${YELLOW}Usage:${RESET} cursor-lint --generate --preset t3\n`);
+      process.exit(0);
+    }
+
+    // Handle --preset <name>
+    if (hasPreset && presetValue && presetValue !== 'list') {
+      console.log(`\n🚀 cursor-lint v${VERSION} --generate --preset ${presetValue}\n`);
+      
+      const presets = listPresets();
+      if (!presets[presetValue]) {
+        console.log(`${RED}Unknown preset: ${presetValue}${RESET}\n`);
+        console.log(`Run ${CYAN}cursor-lint --generate --preset list${RESET} to see available presets\n`);
+        process.exit(1);
+      }
+
+      const results = await generateFromPreset(cwd, presetValue);
+      
+      console.log(`${CYAN}Preset:${RESET} ${results.presetInfo.name}`);
+      console.log(`${DIM}${results.presetInfo.description}${RESET}\n`);
+
+      if (results.created.length > 0) {
+        console.log(`${GREEN}Downloaded:${RESET}`);
+        for (const r of results.created) {
+          console.log(`  ${GREEN}✓${RESET} .cursor/rules/${r.file}`);
+        }
+      }
+
+      if (results.skipped.length > 0) {
+        console.log(`\n${YELLOW}Skipped (already exist):${RESET}`);
+        for (const r of results.skipped) {
+          console.log(`  ${YELLOW}⚠${RESET} .cursor/rules/${r.file}`);
+        }
+      }
+
+      if (results.failed.length > 0) {
+        console.log(`\n${RED}Failed:${RESET}`);
+        for (const r of results.failed) {
+          console.log(`  ${RED}✗${RESET} ${r.file} — ${r.error}`);
+        }
+      }
+
+      if (results.created.length > 0) {
+        console.log(`\n${DIM}Run cursor-lint to check these rules${RESET}\n`);
+      }
+
+      process.exit(results.failed.length > 0 ? 1 : 0);
+    }
+
+    // Regular --generate (no preset)
     console.log(`\n🚀 cursor-lint v${VERSION} --generate\n`);
     console.log(`Detecting stack in ${cwd}...\n`);
 
     const results = await generateRules(cwd);
 
     if (results.detected.length > 0) {
-      console.log(`${CYAN}Detected:${RESET} ${results.detected.join(', ')}\n`);
+      console.log(`${CYAN}Detected stack:${RESET} ${results.detected.join(', ')}`);
+      
+      // Show versions if available
+      if (results.versions && Object.keys(results.versions).length > 0) {
+        const versionStrs = Object.entries(results.versions).map(([dep, ver]) => `${dep}@${ver}`);
+        console.log(`${CYAN}Versions:${RESET} ${versionStrs.join(', ')}`);
+      }
+      console.log();
     } else {
       console.log(`${YELLOW}No recognized stack detected.${RESET}`);
       console.log(`${DIM}Supports: package.json, tsconfig.json, requirements.txt, pyproject.toml,${RESET}`);
@@ -247,6 +321,13 @@ async function main() {
       console.log(`\n${YELLOW}Skipped (already exist):${RESET}`);
       for (const r of [...stackSkipped, ...practiceSkipped]) {
         console.log(`  ${YELLOW}⚠${RESET} .cursor/rules/${r.file}`);
+      }
+    }
+
+    if (results.fallbacks && results.fallbacks.length > 0) {
+      console.log(`\n${YELLOW}Fallbacks (version-specific rule not found):${RESET}`);
+      for (const r of results.fallbacks) {
+        console.log(`  ${YELLOW}⚠${RESET} ${r.from} → ${r.to} ${DIM}(${r.stack})${RESET}`);
       }
     }
 
