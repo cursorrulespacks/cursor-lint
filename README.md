@@ -133,6 +133,10 @@ Made by [nedcodes](https://dev.to/nedcodes) · [Free rules collection](https://g
 
 ---
 
+## Stay Updated
+
+Get experiment results and Cursor findings in your inbox: [subscribe](https://buttondown.com/nedcodes)
+
 ## Related
 
 - [cursorrules-collection](https://github.com/nedcodes-ok/cursorrules-collection) — 104 free .mdc rules
