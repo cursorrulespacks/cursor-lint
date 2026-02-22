@@ -8,12 +8,13 @@ const { fixProject } = require('./fix');
 const { generateRules, suggestSkills } = require('./generate');
 const { checkVersions, checkRuleVersionMismatches } = require('./versions');
 
-const VERSION = '0.11.0';
+const VERSION = '0.12.0';
 
 const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
 const GREEN = '\x1b[32m';
 const CYAN = '\x1b[36m';
+const BLUE = '\x1b[34m';
 const DIM = '\x1b[2m';
 const RESET = '\x1b[0m';
 
@@ -42,6 +43,14 @@ ${YELLOW}What it checks (default):${RESET}
   • Agent skill files (SKILL.md in .claude/skills/, skills/)
   • Vague rules that won't change AI behavior
   • YAML syntax errors
+  • Rule length (token waste detection)
+  • Missing code examples in rules
+  • Empty rule bodies, URL-only rules
+  • Description quality (too short/long)
+  • Glob pattern issues (too broad, spaces, missing extensions)
+  • Excessive rule count (>20 files)
+  • Duplicate/near-duplicate rules across files
+  • Conflicting directives between rules
 
 ${YELLOW}What --verify checks:${RESET}
   • Scans code files matching rule globs
@@ -397,6 +406,7 @@ async function main() {
 
     let totalErrors = 0;
     let totalWarnings = 0;
+    let totalInfo = 0;
     let totalPassed = 0;
 
     for (const result of results) {
@@ -408,7 +418,11 @@ async function main() {
         totalPassed++;
       } else {
         for (const issue of result.issues) {
-          const icon = issue.severity === 'error' ? `${RED}✗${RESET}` : `${YELLOW}⚠${RESET}`;
+          let icon;
+          if (issue.severity === 'error') icon = `${RED}✗${RESET}`;
+          else if (issue.severity === 'info') icon = `${BLUE}ℹ${RESET}`;
+          else icon = `${YELLOW}⚠${RESET}`;
+          
           const lineInfo = issue.line ? ` ${DIM}(line ${issue.line})${RESET}` : '';
           console.log(`  ${icon} ${issue.message}${lineInfo}`);
           if (issue.hint) {
@@ -417,9 +431,11 @@ async function main() {
         }
         const errors = result.issues.filter(i => i.severity === 'error').length;
         const warnings = result.issues.filter(i => i.severity === 'warning').length;
+        const infos = result.issues.filter(i => i.severity === 'info').length;
         totalErrors += errors;
         totalWarnings += warnings;
-        if (errors === 0 && warnings === 0) totalPassed++;
+        totalInfo += infos;
+        if (errors === 0 && warnings === 0 && infos === 0) totalPassed++;
       }
       console.log();
     }
@@ -428,6 +444,7 @@ async function main() {
     const parts = [];
     if (totalErrors > 0) parts.push(`${RED}${totalErrors} error${totalErrors !== 1 ? 's' : ''}${RESET}`);
     if (totalWarnings > 0) parts.push(`${YELLOW}${totalWarnings} warning${totalWarnings !== 1 ? 's' : ''}${RESET}`);
+    if (totalInfo > 0) parts.push(`${BLUE}${totalInfo} info${RESET}`);
     if (totalPassed > 0) parts.push(`${GREEN}${totalPassed} passed${RESET}`);
     console.log(parts.join(', ') + '\n');
 

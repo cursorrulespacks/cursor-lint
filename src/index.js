@@ -59,6 +59,37 @@ function parseFrontmatter(content) {
   }
 }
 
+// Helper: Get body content after frontmatter
+function getBody(content) {
+  const match = content.match(/^---\n[\s\S]*?\n---\n?/);
+  if (!match) return content;
+  return content.slice(match[0].length);
+}
+
+// Helper: Calculate similarity between two texts using Jaccard similarity
+function similarity(textA, textB) {
+  const normalize = (text) => text.toLowerCase().replace(/\s+/g, ' ').trim();
+  const normA = normalize(textA);
+  const normB = normalize(textB);
+  
+  // Check if one is substring of the other
+  if (normA.includes(normB) || normB.includes(normA)) {
+    return 1.0;
+  }
+  
+  // Word-based Jaccard similarity
+  const wordsA = new Set(normA.split(/\s+/));
+  const wordsB = new Set(normB.split(/\s+/));
+  
+  if (wordsA.size === 0 && wordsB.size === 0) return 1.0;
+  if (wordsA.size === 0 || wordsB.size === 0) return 0.0;
+  
+  const intersection = new Set([...wordsA].filter(w => wordsB.has(w)));
+  const union = new Set([...wordsA, ...wordsB]);
+  
+  return intersection.size / union.size;
+}
+
 async function lintMdcFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const issues = [];
@@ -88,6 +119,112 @@ async function lintMdcFile(filePath) {
     if (idx !== -1) {
       const lineNum = content.slice(0, idx).split('\n').length;
       issues.push({ severity: 'warning', message: `Vague rule detected: "${pattern}"`, line: lineNum });
+    }
+  }
+
+  // Get body content for additional checks
+  const body = getBody(content);
+
+  // 1. Rule too long
+  if (body.length > 2000) {
+    issues.push({
+      severity: 'warning',
+      message: 'Rule body is very long (>2000 chars, ~500+ tokens)',
+      hint: 'Shorter, specific rules outperform long generic ones. Consider splitting into focused rules.',
+    });
+  }
+
+  // 2. No examples
+  const hasCodeBlocks = /```/.test(body) || /\n {4,}\S/.test(body);
+  if (body.length > 200 && !hasCodeBlocks) {
+    issues.push({
+      severity: 'warning',
+      message: 'Rule has no code examples',
+      hint: 'Rules with examples get followed more reliably by the AI model.',
+    });
+  }
+
+  // 3. Empty rule body
+  if (fm.found && body.trim().length === 0) {
+    issues.push({
+      severity: 'error',
+      message: 'Rule file has frontmatter but no instructions',
+      hint: 'Add rule instructions after the --- frontmatter block.',
+    });
+  }
+
+  // 4. Description too short
+  if (fm.data && fm.data.description && fm.data.description.length < 10) {
+    issues.push({
+      severity: 'warning',
+      message: 'Description is very short (<10 chars)',
+      hint: 'A descriptive description helps Cursor decide when to apply this rule.',
+    });
+  }
+
+  // 5. Description too long
+  if (fm.data && fm.data.description && fm.data.description.length > 200) {
+    issues.push({
+      severity: 'warning',
+      message: 'Description is very long (>200 chars)',
+      hint: 'Keep descriptions concise. Put detailed instructions in the rule body, not the description.',
+    });
+  }
+
+  // 6. Glob pattern issues
+  if (fm.data && fm.data.globs) {
+    const globs = parseGlobs(fm.data.globs);
+    for (const glob of globs) {
+      // Overly broad glob
+      if (glob === '*' || glob === '**') {
+        issues.push({
+          severity: 'warning',
+          message: 'Overly broad glob pattern',
+          hint: 'This matches everything. Consider using more specific patterns or just alwaysApply: true.',
+        });
+      }
+      // Glob contains spaces
+      if (glob.includes(' ') && !glob.includes('"') && !glob.includes("'")) {
+        issues.push({
+          severity: 'warning',
+          message: 'Glob pattern contains spaces',
+          hint: 'Glob patterns with spaces may not match correctly.',
+        });
+      }
+      // Glob is *.
+      if (glob === '*.') {
+        issues.push({
+          severity: 'warning',
+          message: 'Glob pattern has no file extension after dot',
+        });
+      }
+    }
+  }
+
+  // 7. alwaysApply + globs info
+  if (fm.data && fm.data.alwaysApply === true && fm.data.globs) {
+    const globs = parseGlobs(fm.data.globs);
+    if (globs.length > 0) {
+      issues.push({
+        severity: 'info',
+        message: 'alwaysApply is true with globs set',
+        hint: 'When alwaysApply is true, globs serve as a hint to the model but don\'t filter. This is fine if intentional.',
+      });
+    }
+  }
+
+  // 8. Rule body is just a URL
+  const bodyTrimmed = body.trim();
+  const urlMatch = bodyTrimmed.match(/^https?:\/\//);
+  if (urlMatch) {
+    const lines = bodyTrimmed.split('\n').filter(line => line.trim().length > 0);
+    const nonUrlLines = lines.filter(line => !line.trim().match(/^https?:\/\//));
+    if (nonUrlLines.length < 2) {
+      issues.push({
+        severity: 'warning',
+        message: 'Rule body appears to be just a URL',
+        hint: 'Cursor cannot follow URLs. Put the actual instructions in the rule body.',
+      });
     }
   }
 
@@ -247,6 +384,54 @@ async function lintProject(dir) {
       file: path.join(dir, '.cursor/rules/'),
       issues: conflicts,
     });
+  }
+
+  // 9. Excessive rules count & 10. Duplicate rule content
+  const rulesDirPath = path.join(dir, '.cursor', 'rules');
+  if (fs.existsSync(rulesDirPath) && fs.statSync(rulesDirPath).isDirectory()) {
+    const mdcFiles = fs.readdirSync(rulesDirPath).filter(f => f.endsWith('.mdc'));
+    
+    if (mdcFiles.length > 20) {
+      results.push({
+        file: rulesDirPath,
+        issues: [{
+          severity: 'warning',
+          message: `Project has ${mdcFiles.length} rule files`,
+          hint: 'More rules means more tokens consumed per request. Consider consolidating related rules.',
+        }],
+      });
+    }
+
+    // 10. Duplicate rule content
+    if (mdcFiles.length > 1) {
+      const parsed = [];
+      for (const file of mdcFiles) {
+        const filePath = path.join(rulesDirPath, file);
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const body = getBody(content);
+        parsed.push({ file, filePath, body });
+      }
+
+      // Compare each pair
+      for (let i = 0; i < parsed.length; i++) {
+        for (let j = i + 1; j < parsed.length; j++) {
+          const a = parsed[i];
+          const b = parsed[j];
+          const sim = similarity(a.body, b.body);
+          
+          if (sim > 0.8) {
+            results.push({
+              file: rulesDirPath,
+              issues: [{
+                severity: 'warning',
+                message: `Possible duplicate rules: ${a.file} and ${b.file}`,
+                hint: 'These rules have very similar content. Consider merging them.',
+              }],
+            });
+          }
+        }
+      }
+    }
   }
 
   return results;
