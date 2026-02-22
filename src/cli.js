@@ -7,6 +7,10 @@ const { initProject } = require('./init');
 const { fixProject } = require('./fix');
 const { generateRules, suggestSkills, listPresets, generateFromPreset } = require('./generate');
 const { checkVersions, checkRuleVersionMismatches } = require('./versions');
+const { showStats } = require('./stats');
+const { migrate } = require('./migrate');
+const { doctor } = require('./doctor');
+const { saveSnapshot, diffSnapshot } = require('./diff');
 
 const VERSION = '0.13.0';
 
@@ -17,6 +21,8 @@ const CYAN = '\x1b[36m';
 const BLUE = '\x1b[34m';
 const DIM = '\x1b[2m';
 const RESET = '\x1b[0m';
+
+const SNAPSHOT_FILE = '.cursor-lint-snapshot.json';
 
 function showHelp() {
   console.log(`
@@ -38,6 +44,11 @@ ${YELLOW}Options:${RESET}
   --generate --preset list    Show available presets
   --order        Show rule load order, priority tiers, and token estimates
   --version-check  Detect installed package versions and show relevant rule tips
+  --stats        Show rule health dashboard (counts, tokens, coverage)
+  --migrate      Convert .cursorrules to .cursor/rules/*.mdc format
+  --doctor       Full project health check with letter grade
+  --diff save    Save current rules as snapshot
+  --diff         Compare current rules to saved snapshot
 
 ${YELLOW}What it checks (default):${RESET}
   • .cursorrules files (warns about agent mode compatibility)
@@ -105,6 +116,10 @@ async function main() {
   const isGenerate = args.includes('--generate');
   const isOrder = args.includes('--order');
   const isVersionCheck = args.includes('--version-check');
+  const isStats = args.includes('--stats');
+  const isMigrate = args.includes('--migrate');
+  const isDoctor = args.includes('--doctor');
+  const isDiff = args.includes('--diff');
 
   if (isVersionCheck) {
     console.log(`\n📦 cursor-lint v${VERSION} --version-check\n`);
@@ -141,6 +156,186 @@ async function main() {
     console.log('─'.repeat(50));
     console.log(`${DIM}Use these notes to customize your .mdc rules for your exact versions.${RESET}\n`);
     process.exit(mismatches.length > 0 ? 1 : 0);
+
+  } else if (isStats) {
+    console.log(`\n📊 cursor-lint v${VERSION} --stats\n`);
+    console.log(`Scanning ${cwd}...\n`);
+    const stats = showStats(cwd);
+    
+    // Summary
+    console.log(`${CYAN}Rule files:${RESET}`);
+    console.log(`  .mdc files:     ${stats.mdcFiles.length}`);
+    if (stats.hasCursorrules) console.log(`  .cursorrules:   1 (legacy — run --migrate)`);
+    console.log(`  Skill files:    ${stats.skillFiles.length}`);
+    console.log(`  Total tokens:   ~${stats.totalTokens}`);
+    console.log();
+    
+    // Tier breakdown
+    console.log(`${CYAN}Rule tiers:${RESET}`);
+    console.log(`  Always active:  ${stats.tiers.always}`);
+    console.log(`  Glob-matched:   ${stats.tiers.glob}`);
+    console.log(`  Manual only:    ${stats.tiers.manual}`);
+    console.log();
+    
+    // Token breakdown by file
+    if (stats.mdcFiles.length > 0) {
+      console.log(`${CYAN}Token breakdown:${RESET}`);
+      const sorted = [...stats.mdcFiles].sort((a, b) => b.tokens - a.tokens);
+      for (const f of sorted) {
+        const bar = '█'.repeat(Math.max(1, Math.round(f.tokens / 50)));
+        const pct = Math.round((f.tokens / stats.totalTokens) * 100);
+        console.log(`  ${f.file.padEnd(30)} ${String(f.tokens).padStart(5)} tokens (${String(pct).padStart(2)}%) ${DIM}${bar}${RESET}`);
+      }
+      console.log();
+    }
+    
+    // Coverage gaps
+    if (stats.coverageGaps.length > 0) {
+      console.log(`${YELLOW}Coverage gaps:${RESET}`);
+      for (const gap of stats.coverageGaps) {
+        console.log(`  ${YELLOW}⚠${RESET} ${gap.ext} files found but no matching rule`);
+        console.log(`    ${DIM}→ Try: --generate (suggests ${gap.suggestedRules.join(', ')})${RESET}`);
+      }
+    } else if (stats.mdcFiles.length > 0) {
+      console.log(`${GREEN}✓ No coverage gaps detected${RESET}`);
+    }
+    
+    console.log();
+    process.exit(0);
+
+  } else if (isMigrate) {
+    console.log(`\n🔄 cursor-lint v${VERSION} --migrate\n`);
+    const result = migrate(cwd);
+    
+    if (result.error) {
+      console.log(`${RED}✗${RESET} ${result.error}`);
+      process.exit(1);
+    }
+    
+    console.log(`${CYAN}Source:${RESET} .cursorrules (${result.source.lines} lines, ${result.source.chars} chars)\n`);
+    
+    if (result.created.length > 0) {
+      console.log(`${GREEN}Created:${RESET}`);
+      for (const f of result.created) {
+        console.log(`  ${GREEN}✓${RESET} .cursor/rules/${f}`);
+      }
+    }
+    
+    if (result.skipped.length > 0) {
+      console.log(`${YELLOW}Skipped (already exists):${RESET}`);
+      for (const f of result.skipped) {
+        console.log(`  ${YELLOW}⚠${RESET} .cursor/rules/${f}`);
+      }
+    }
+    
+    console.log();
+    console.log(`${DIM}Your .cursorrules file was NOT deleted — verify the migration, then remove it manually.${RESET}`);
+    console.log(`${DIM}Run cursor-lint to check the new rules.${RESET}\n`);
+    process.exit(0);
+
+  } else if (isDoctor) {
+    console.log(`\n🏥 cursor-lint v${VERSION} --doctor\n`);
+    console.log(`Running full health check on ${cwd}...\n`);
+    const report = await doctor(cwd);
+    
+    // Grade display
+    const gradeColors = { A: GREEN, B: GREEN, C: YELLOW, D: YELLOW, F: RED };
+    const gradeColor = gradeColors[report.grade] || RESET;
+    console.log(`  ${gradeColor}${'━'.repeat(30)}${RESET}`);
+    console.log(`  ${gradeColor}  Project Health: ${report.grade} (${report.percentage}%)  ${RESET}`);
+    console.log(`  ${gradeColor}${'━'.repeat(30)}${RESET}\n`);
+    
+    // Check results
+    for (const check of report.checks) {
+      let icon;
+      if (check.status === 'pass') icon = `${GREEN}✓${RESET}`;
+      else if (check.status === 'warn') icon = `${YELLOW}⚠${RESET}`;
+      else if (check.status === 'fail') icon = `${RED}✗${RESET}`;
+      else icon = `${BLUE}ℹ${RESET}`;
+      
+      console.log(`  ${icon} ${check.name}`);
+      console.log(`    ${DIM}${check.detail}${RESET}`);
+    }
+    
+    console.log();
+    
+    // Suggestions based on grade
+    if (report.grade === 'F' || report.grade === 'D') {
+      console.log(`${YELLOW}Quick wins:${RESET}`);
+      console.log(`  • Run ${CYAN}cursor-lint --init${RESET} to create starter rules`);
+      console.log(`  • Run ${CYAN}cursor-lint --generate${RESET} to download rules for your stack`);
+      if (report.checks.some(c => c.name === 'No legacy .cursorrules' && c.status === 'warn')) {
+        console.log(`  • Run ${CYAN}cursor-lint --migrate${RESET} to convert .cursorrules to .mdc`);
+      }
+    } else if (report.grade === 'C') {
+      console.log(`${YELLOW}Improvements:${RESET}`);
+      console.log(`  • Run ${CYAN}cursor-lint --fix${RESET} to auto-repair common issues`);
+      console.log(`  • Run ${CYAN}cursor-lint --stats${RESET} to find token waste`);
+    }
+    
+    console.log();
+    process.exit(report.grade === 'F' ? 1 : 0);
+
+  } else if (isDiff) {
+    const isDiffSave = args.includes('save');
+    
+    if (isDiffSave) {
+      console.log(`\n📸 cursor-lint v${VERSION} --diff save\n`);
+      const { path: snapPath, state } = saveSnapshot(cwd);
+      const ruleCount = Object.keys(state.rules).length;
+      console.log(`${GREEN}✓${RESET} Snapshot saved to ${path.basename(snapPath)}`);
+      console.log(`  ${DIM}${ruleCount} rule${ruleCount !== 1 ? 's' : ''} captured at ${state.timestamp}${RESET}\n`);
+      console.log(`${DIM}Add ${SNAPSHOT_FILE} to .gitignore, or commit it to track rule changes.${RESET}\n`);
+      process.exit(0);
+    }
+    
+    console.log(`\n📊 cursor-lint v${VERSION} --diff\n`);
+    const changes = diffSnapshot(cwd);
+    
+    if (changes.error) {
+      console.log(`${RED}✗${RESET} ${changes.error}\n`);
+      process.exit(1);
+    }
+    
+    console.log(`${DIM}Comparing to snapshot from ${changes.savedAt}${RESET}\n`);
+    
+    if (!changes.hasChanges) {
+      console.log(`${GREEN}✓ No changes since last snapshot${RESET}\n`);
+      process.exit(0);
+    }
+    
+    if (changes.added.length > 0) {
+      console.log(`${GREEN}Added:${RESET}`);
+      for (const f of changes.added) {
+        console.log(`  ${GREEN}+${RESET} ${f.file} (${f.tokens} tokens, ${f.lines} lines)`);
+      }
+      console.log();
+    }
+    
+    if (changes.removed.length > 0) {
+      console.log(`${RED}Removed:${RESET}`);
+      for (const f of changes.removed) {
+        console.log(`  ${RED}-${RESET} ${f.file} (${f.tokens} tokens, ${f.lines} lines)`);
+      }
+      console.log();
+    }
+    
+    if (changes.modified.length > 0) {
+      console.log(`${YELLOW}Modified:${RESET}`);
+      for (const f of changes.modified) {
+        const tokenDiff = f.newTokens - f.oldTokens;
+        const sign = tokenDiff >= 0 ? '+' : '';
+        console.log(`  ${YELLOW}~${RESET} ${f.file} (${sign}${tokenDiff} tokens, ${f.oldLines}→${f.newLines} lines)`);
+      }
+      console.log();
+    }
+    
+    // Summary
+    const sign = changes.tokenDelta >= 0 ? '+' : '';
+    console.log(`${CYAN}Summary:${RESET} ${changes.added.length} added, ${changes.removed.length} removed, ${changes.modified.length} modified (${sign}${changes.tokenDelta} tokens)\n`);
+    
+    // Exit 1 if changes detected (useful for CI)
+    process.exit(1);
 
   } else if (isOrder) {
     const { showLoadOrder } = require('./order');
