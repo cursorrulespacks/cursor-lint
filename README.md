@@ -3,7 +3,7 @@
 [![npm](https://img.shields.io/npm/dw/cursor-lint)](https://www.npmjs.com/package/cursor-lint)
 [![npm version](https://img.shields.io/npm/v/cursor-lint)](https://www.npmjs.com/package/cursor-lint)
 
-Lint your [Cursor](https://cursor.com) rules. Catch common mistakes before they silently break your workflow.
+Lint your [Cursor](https://cursor.com) rules. Find problems before they silently break your output.
 
 ![cursor-lint demo](demo.png)
 
