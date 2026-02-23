@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { lintProject } = require('./index');
 const { showStats } = require('./stats');
+const { lintPlugin } = require('./plugin');
 
 async function doctor(dir) {
   const report = {
@@ -116,6 +117,33 @@ async function doctor(dir) {
   } else {
     report.score += 5; // not having skills is fine, just not optimal
     report.checks.push({ name: 'Agent skills', status: 'info', detail: 'No agent skills found. Skills are optional but can improve agent behavior for complex workflows.' });
+  }
+
+  // 7. Plugin validation (if this is a plugin)
+  const pluginManifestPath = path.join(dir, '.cursor-plugin', 'plugin.json');
+  if (fs.existsSync(pluginManifestPath)) {
+    report.maxScore += 10;
+    const pluginResults = await lintPlugin(dir);
+    let pluginErrors = 0;
+    let pluginWarnings = 0;
+    
+    for (const r of pluginResults) {
+      for (const i of r.issues) {
+        if (i.severity === 'error') pluginErrors++;
+        else if (i.severity === 'warning') pluginWarnings++;
+      }
+    }
+    
+    if (pluginErrors === 0 && pluginWarnings === 0) {
+      report.score += 10;
+      report.checks.push({ name: 'Plugin validation', status: 'pass', detail: 'Plugin structure is valid' });
+    } else if (pluginErrors === 0) {
+      report.score += 7;
+      report.checks.push({ name: 'Plugin validation', status: 'warn', detail: `${pluginWarnings} warning${pluginWarnings !== 1 ? 's' : ''} in plugin structure. Run cursor-lint --plugin to see details.` });
+    } else {
+      report.score += 3;
+      report.checks.push({ name: 'Plugin validation', status: 'fail', detail: `${pluginErrors} error${pluginErrors !== 1 ? 's' : ''} in plugin structure. Run cursor-lint --plugin to fix.` });
+    }
   }
 
   // Calculate grade

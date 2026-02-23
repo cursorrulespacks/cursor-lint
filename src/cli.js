@@ -11,6 +11,7 @@ const { showStats } = require('./stats');
 const { migrate } = require('./migrate');
 const { doctor } = require('./doctor');
 const { saveSnapshot, diffSnapshot } = require('./diff');
+const { lintPlugin } = require('./plugin');
 
 const VERSION = '0.13.0';
 
@@ -49,6 +50,7 @@ ${YELLOW}Options:${RESET}
   --doctor       Full project health check with letter grade
   --diff save    Save current rules as snapshot
   --diff         Compare current rules to saved snapshot
+  --plugin       Validate Cursor 2.5 plugin structure
 
 ${YELLOW}What it checks (default):${RESET}
   • .cursorrules files (warns about agent mode compatibility)
@@ -120,6 +122,7 @@ async function main() {
   const isMigrate = args.includes('--migrate');
   const isDoctor = args.includes('--doctor');
   const isDiff = args.includes('--diff');
+  const isPlugin = args.includes('--plugin');
 
   if (isVersionCheck) {
     console.log(`\n📦 cursor-lint v${VERSION} --version-check\n`);
@@ -234,9 +237,10 @@ async function main() {
     process.exit(0);
 
   } else if (isDoctor) {
+    const dir = args.find(a => !a.startsWith('-')) ? path.resolve(args.find(a => !a.startsWith('-'))) : cwd;
     console.log(`\n🏥 cursor-lint v${VERSION} --doctor\n`);
-    console.log(`Running full health check on ${cwd}...\n`);
-    const report = await doctor(cwd);
+    console.log(`Running full health check on ${dir}...\n`);
+    const report = await doctor(dir);
     
     // Grade display
     const gradeColors = { A: GREEN, B: GREEN, C: YELLOW, D: YELLOW, F: RED };
@@ -336,6 +340,58 @@ async function main() {
     
     // Exit 1 if changes detected (useful for CI)
     process.exit(1);
+
+  } else if (isPlugin) {
+    const dir = args.find(a => !a.startsWith('-')) ? path.resolve(args.find(a => !a.startsWith('-'))) : cwd;
+
+    console.log(`\n🔌 cursor-lint v${VERSION} --plugin\n`);
+    console.log(`Validating Cursor plugin in ${dir}...\n`);
+
+    const results = await lintPlugin(dir);
+
+    if (results.length === 0) {
+      console.log(`${GREEN}✓ Plugin validation passed${RESET}\n`);
+      process.exit(0);
+    }
+
+    let totalErrors = 0;
+    let totalWarnings = 0;
+
+    for (const result of results) {
+      console.log(result.file);
+
+      if (result.issues.length === 0) {
+        console.log(`  ${GREEN}✓ All checks passed${RESET}`);
+      } else {
+        for (const issue of result.issues) {
+          let icon;
+          if (issue.severity === 'error') {
+            icon = `${RED}✗${RESET}`;
+            totalErrors++;
+          } else if (issue.severity === 'warning') {
+            icon = `${YELLOW}⚠${RESET}`;
+            totalWarnings++;
+          } else {
+            icon = `${BLUE}ℹ${RESET}`;
+          }
+
+          console.log(`  ${icon} ${issue.message}`);
+          if (issue.hint) {
+            console.log(`    ${DIM}→ ${issue.hint}${RESET}`);
+          }
+        }
+      }
+      console.log();
+    }
+
+    console.log('─'.repeat(50));
+    const parts = [];
+    if (totalErrors > 0) parts.push(`${RED}${totalErrors} error${totalErrors !== 1 ? 's' : ''}${RESET}`);
+    if (totalWarnings > 0) parts.push(`${YELLOW}${totalWarnings} warning${totalWarnings !== 1 ? 's' : ''}${RESET}`);
+    if (parts.length === 0) parts.push(`${GREEN}All checks passed${RESET}`);
+    console.log(parts.join(', ') + '\n');
+
+    process.exit(totalErrors > 0 ? 1 : 0);
 
   } else if (isOrder) {
     const { showLoadOrder } = require('./order');
