@@ -784,7 +784,8 @@ async function main() {
       console.log(`${DIM}Try ${CYAN}cursor-lint --fix${RESET}${DIM} to auto-repair frontmatter issues.${RESET}`);
       console.log(`${DIM}Run ${CYAN}cursor-lint --order${RESET}${DIM} to check which rules are actually loading.${RESET}\n`);
     } else if (totalPassed > 0) {
-      console.log(`${DIM}If cursor-lint saved you time: ${CYAN}https://github.com/nedcodes-ok/cursor-lint${RESET} ${DIM}(⭐ helps others find it)${RESET}\n`);
+      console.log(`${DIM}If cursor-lint saved you time: ${CYAN}https://github.com/nedcodes-ok/cursor-lint${RESET} ${DIM}(⭐ helps others find it)${RESET}`);
+      console.log(`${DIM}Free Cursor Safety Checklist: ${CYAN}https://nedcodes.gumroad.com/l/cursor-safety-checklist${RESET}\n`);
     }
 
     process.exit(totalErrors > 0 ? 1 : 0);
