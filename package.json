@@ -1,0 +1,37 @@
+{
+  "name": "cursor-doctor",
+  "version": "1.0.0",
+  "description": "Diagnose, audit, and fix your Cursor AI rules setup",
+  "main": "src/index.js",
+  "bin": {
+    "cursor-doctor": "src/cli.js"
+  },
+  "keywords": [
+    "cursor",
+    "cursor-ai",
+    "cursorrules",
+    "mdc",
+    "doctor",
+    "audit",
+    "developer-tools",
+    "cursor-rules",
+    "lint",
+    "validate",
+    "ai-coding",
+    "code-quality",
+    "diagnostics"
+  ],
+  "author": "nedcodes",
+  "license": "MIT",
+  "homepage": "https://github.com/nedcodes-ok/cursor-doctor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nedcodes-ok/cursor-doctor.git"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "files": [
+    "src/"
+  ]
+}
