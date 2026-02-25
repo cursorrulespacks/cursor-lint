@@ -1,7 +1,7 @@
 {
   "name": "cursor-doctor",
   "version": "1.0.0",
-  "description": "Diagnose, audit, and fix your Cursor AI rules setup",
+  "description": "Fix your Cursor AI setup in seconds — health checks, diagnostics, and auto-repair for your .cursor config",
   "main": "src/index.js",
   "bin": {
     "cursor-doctor": "src/cli.js"
@@ -11,15 +11,13 @@
     "cursor-ai",
     "cursorrules",
     "mdc",
-    "doctor",
-    "audit",
     "developer-tools",
     "cursor-rules",
-    "lint",
-    "validate",
+    "cursor-config",
     "ai-coding",
     "code-quality",
-    "diagnostics"
+    "diagnostics",
+    "health-check"
   ],
   "author": "nedcodes",
   "license": "MIT",

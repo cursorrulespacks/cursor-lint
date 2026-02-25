@@ -1,2 +1,2 @@
-node_modules/
-.DS_Store
+node_modules/\ntest-project/\n.cursor-lint-snapshot.json\n.cursor-doctor-license
+cursor-lint

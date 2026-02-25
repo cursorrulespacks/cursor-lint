@@ -1,8 +1,23 @@
 # cursor-doctor
 
-Diagnose, audit, and fix your Cursor AI rules setup.
+**Fix your Cursor AI setup in seconds.**
 
-Find broken YAML, token waste, conflicting rules, coverage gaps, and deprecated `.cursorrules` files in seconds.
+Run one command to find out what's wrong with your `.cursor/` config and how to fix it.
+
+```
+$ npx cursor-doctor scan
+
+  ✓ Rules exist: .cursor/rules/ found with .mdc files
+  ✗ No legacy .cursorrules: .cursorrules exists alongside .mdc rules — may cause conflicts
+  ! Lint checks: 3 errors, 2 warnings. Run `cursor-doctor fix` to repair.
+  ! Token budget: ~4,200 tokens — getting heavy. Consider trimming.
+  ✓ Coverage: Rules cover your project file types
+  i Agent skills: No agent skills found
+
+  Health Score: C (62%)
+
+  3 issues can be auto-fixed. Run cursor-doctor fix (Pro)
+```
 
 ## Install
 
@@ -10,80 +25,75 @@ Find broken YAML, token waste, conflicting rules, coverage gaps, and deprecated 
 npx cursor-doctor scan
 ```
 
-Or install globally:
+No install needed. Runs directly with npx. Zero dependencies.
+
+## What It Checks
+
+| Check | What it does |
+|-------|-------------|
+| **Rules exist** | Verifies you have `.cursor/rules/*.mdc` files |
+| **Legacy files** | Flags `.cursorrules` that should be migrated to `.mdc` |
+| **Lint** | 20+ checks: broken YAML, missing frontmatter, vague rules, conflicts |
+| **Token budget** | Estimates how many tokens your rules consume per request |
+| **Coverage** | Detects project file types with no matching rules |
+| **Skills** | Checks for agent skill definitions |
+| **Conflicts** | Finds contradictory instructions across rule files |
+| **Redundancy** | Spots duplicate content between rules |
+
+## Commands
+
+### Free
 
 ```bash
-npm install -g cursor-doctor
+# Health score + issue list
+cursor-doctor scan
+
+# CI-friendly: one line per issue, exit code 0/1
+cursor-doctor check
+
+# Convert .cursorrules to .cursor/rules/*.mdc
+cursor-doctor migrate
 ```
 
-## Free Commands
-
-### `cursor-doctor scan`
-
-Full health check of your `.cursor/` directory:
-
-- Rule count and file sizes
-- Token estimates per rule
-- Broken YAML detection
-- Deprecated `.cursorrules` warning
-- Coverage gaps (file types without rules)
-- Health score (A-F grade)
-
-### `cursor-doctor check`
-
-Same checks, one line per issue. Returns exit code 1 if problems found. Perfect for CI:
+### Pro ($9 one-time)
 
 ```bash
-cursor-doctor check && echo "Rules are healthy"
-```
+# Full diagnostic report: conflicts, redundancy, token budget, stack detection
+cursor-doctor audit
 
-### `cursor-doctor migrate`
-
-Convert legacy `.cursorrules` to `.cursor/rules/*.mdc` format.
-
-## Pro Commands
-
-One-time $12 key unlocks these forever. [Get a key →](https://nedcodes.lemonsqueezy.com/cursor-doctor)
-
-### `cursor-doctor audit`
-
-Deep analysis:
-
-- **Stack detection** from package.json (Next.js, React, Express, Python, etc.)
-- **Token budget breakdown** per rule, split by always-loaded vs conditional
-- **Conflict detection** between rules (contradictory style directives)
-- **Redundancy finder** (overlapping content across rule files)
-- **Coverage gaps** with specific rule suggestions
-- **Fix instructions** for every issue found
-
-Export as markdown:
-
-```bash
+# Export as markdown
 cursor-doctor audit --md > report.md
-```
 
-### `cursor-doctor fix`
+# Auto-fix: repair frontmatter, split oversized files, resolve issues
+cursor-doctor fix
 
-Auto-fix common issues:
-
-- Repair broken frontmatter
-- Split oversized rule files (>1500 tokens)
-- Flag redundant rules for manual review
-
-Preview first:
-
-```bash
+# Preview fixes without writing
 cursor-doctor fix --dry-run
+
+# Activate your license
+cursor-doctor activate <key>
 ```
 
-## Activate Pro
+**Get a Pro key:** [nedcodes.gumroad.com/l/cursor-doctor](https://nedcodes.gumroad.com/l/cursor-doctor)
 
-```bash
-cursor-doctor activate <your-license-key>
-```
+## Why?
 
-Key is stored locally (hashed). No server calls, no telemetry.
+Cursor's AI reads your `.cursor/rules/` directory to understand how you want code written. But most setups have problems:
 
-## Built by [nedcodes](https://github.com/nedcodes-ok)
+- Rules with broken YAML frontmatter that Cursor silently ignores
+- `alwaysApply: true` on everything, burning tokens on irrelevant rules
+- Conflicting instructions across files ("use semicolons" in one, "no semicolons" in another)
+- Legacy `.cursorrules` files that conflict with `.mdc` rules
+- 5,000+ tokens of rules eating into your context window every request
 
-From the same person who brought you [cursor-lint](https://www.npmjs.com/package/cursor-lint) and the [cursorrules-collection](https://github.com/nedcodes-ok/cursorrules-collection).
+cursor-doctor finds these problems and fixes them.
+
+## From the makers of cursor-lint
+
+cursor-doctor is the evolution of [cursor-lint](https://www.npmjs.com/package/cursor-lint) (1,800+ downloads). Same engine, broader scope, auto-fix capabilities.
+
+If you're already using cursor-lint, cursor-doctor includes everything cursor-lint does plus diagnostics, conflict detection, and automated repair.
+
+## License
+
+MIT
