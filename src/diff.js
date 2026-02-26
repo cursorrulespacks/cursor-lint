@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const SNAPSHOT_FILE = '.cursor-lint-snapshot.json';
+const SNAPSHOT_FILE = '.cursor-doctor-snapshot.json';
 
 function hashContent(content) {
   return crypto.createHash('md5').update(content).digest('hex');
@@ -44,7 +44,7 @@ function saveSnapshot(dir) {
 function diffSnapshot(dir) {
   const snapshotPath = path.join(dir, SNAPSHOT_FILE);
   if (!fs.existsSync(snapshotPath)) {
-    return { error: 'No snapshot found. Run cursor-lint --diff save first.' };
+    return { error: 'No snapshot found. Run cursor-doctor diff --save first.' };
   }
 
   const saved = JSON.parse(fs.readFileSync(snapshotPath, 'utf-8'));
