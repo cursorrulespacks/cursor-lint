@@ -3,7 +3,7 @@ const path = require('path');
 const https = require('https');
 const crypto = require('crypto');
 
-const PRODUCT_PERMALINK = 'cursor-doctor';
+const PRODUCT_PERMALINK = 'cursor-doctor-pro';
 const LICENSE_FILE = '.cursor-doctor-license';
 const SALT = 'cursor-doctor-v1';
 
