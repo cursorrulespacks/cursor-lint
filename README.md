@@ -92,6 +92,10 @@ cursor-doctor is the evolution of [cursor-lint](https://www.npmjs.com/package/cu
 
 If you're already using cursor-lint, cursor-doctor includes everything cursor-lint does plus diagnostics, conflict detection, and automated repair.
 
+## Related
+
+- **[rule-porter](https://github.com/nedcodes-ok/rule-porter)** — Convert your Cursor rules to CLAUDE.md, AGENTS.md, Copilot, or Windsurf (and back). `npx rule-porter --to agents-md`
+
 ## License
 
 MIT
