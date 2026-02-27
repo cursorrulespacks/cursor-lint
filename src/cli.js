@@ -46,7 +46,7 @@ function showHelp() {
     YELLOW + 'Other:' + RESET,
     '  npx cursor-doctor activate <key>  # Activate license',
     '',
-    DIM + 'Get a Pro key: ' + PURCHASE_URL + RESET,
+    DIM + 'Get a Pro key: ' + PURCHASE_URL + '?utm_source=cli&utm_medium=npx&utm_campaign=help' + RESET,
     '',
   ];
   console.log(lines.join('\n'));
@@ -55,9 +55,13 @@ function showHelp() {
 function requirePro(dir) {
   if (isLicensed(dir)) return true;
   console.log();
-  console.log(YELLOW + 'This is a Pro feature.' + RESET);
-  console.log('Get a license key ($9 one-time): ' + CYAN + PURCHASE_URL + RESET);
-  console.log('Then run: ' + DIM + 'cursor-doctor activate <your-key>' + RESET);
+  console.log(YELLOW + BOLD + 'Pro feature — $9 one-time, no subscription.' + RESET);
+  console.log();
+  console.log('  Includes: audit (full diagnostics), fix (auto-repair),');
+  console.log('  conflict detection, redundancy cleanup, stack templates.');
+  console.log();
+  console.log('  ' + CYAN + PURCHASE_URL + '?utm_source=cli&utm_medium=npx&utm_campaign=paywall' + RESET);
+  console.log('  Then: ' + DIM + 'cursor-doctor activate <your-key>' + RESET);
   console.log();
   return false;
 }
@@ -144,7 +148,8 @@ async function main() {
 
     if (fixable > 0) {
       console.log('  ' + CYAN + 'Auto-fix:' + RESET + ' npx cursor-doctor fix');
-      console.log('  ' + DIM + 'Pro ($9 one-time) ' + PURCHASE_URL + RESET);
+      console.log('  ' + CYAN + 'Full diagnostic:' + RESET + ' npx cursor-doctor audit');
+      console.log('  ' + DIM + 'Pro ($9 one-time) ' + PURCHASE_URL + '?utm_source=cli&utm_medium=npx&utm_campaign=scan' + RESET);
       console.log();
     }
 
