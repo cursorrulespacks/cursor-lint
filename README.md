@@ -27,6 +27,12 @@ npx cursor-doctor scan
 
 No install needed. Runs directly with npx. Zero dependencies.
 
+### VS Code / Cursor Extension
+
+Search **"Cursor Doctor"** in the extensions panel, or install from [OpenVSX](https://open-vsx.org/extension/nedcodes/cursor-doctor).
+
+Health grade in your status bar. Inline diagnostics on save. Same engine, zero config.
+
 ## What It Checks
 
 | Check | What it does |
