@@ -4,20 +4,7 @@
 
 Run one command to find out what's wrong with your `.cursor/` config and how to fix it.
 
-```
-$ npx cursor-doctor scan
-
-  ✓ Rules exist: .cursor/rules/ found with .mdc files
-  ✗ No legacy .cursorrules: .cursorrules exists alongside .mdc rules — may cause conflicts
-  ! Lint checks: 3 errors, 2 warnings. Run `cursor-doctor fix` to repair.
-  ! Token budget: ~4,200 tokens — getting heavy. Consider trimming.
-  ✓ Coverage: Rules cover your project file types
-  i Agent skills: No agent skills found
-
-  Health Score: C (62%)
-
-  3 issues can be auto-fixed. Run cursor-doctor fix (Pro)
-```
+![cursor-doctor scan demo](https://raw.githubusercontent.com/nedcodes-ok/cursor-doctor/main/images/demo.gif)
 
 ## Install
 
