@@ -1,5 +1,7 @@
 # cursor-doctor
 
+[![npm version](https://img.shields.io/npm/v/cursor-doctor)](https://www.npmjs.com/package/cursor-doctor) [![npm downloads](https://img.shields.io/npm/dw/cursor-doctor)](https://www.npmjs.com/package/cursor-doctor) [![license](https://img.shields.io/npm/l/cursor-doctor)](https://github.com/nedcodes-ok/cursor-doctor/blob/main/LICENSE) [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](https://github.com/nedcodes-ok/cursor-doctor/blob/main/CONTRIBUTING.md)
+
 **Fix your Cursor AI setup in seconds.**
 
 Run one command to find out what's wrong with your `.cursor/` config and how to fix it.
@@ -94,6 +96,7 @@ If you're already using cursor-lint, cursor-doctor includes everything cursor-li
 
 ## Related
 
+- **[rule-gen](https://github.com/nedcodes-ok/rule-gen)** — Generate rules from your codebase using Google Gemini. `npx rulegen-ai`
 - **[rule-porter](https://github.com/nedcodes-ok/rule-porter)** — Convert your Cursor rules to CLAUDE.md, AGENTS.md, Copilot, or Windsurf (and back). `npx rule-porter --to agents-md`
 
 ## License
