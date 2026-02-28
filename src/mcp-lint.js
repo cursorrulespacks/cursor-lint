@@ -13,8 +13,6 @@ var MCP_FILE_PATTERNS = [
   '.mcp.json',
 ];
 
-// Required fields per server entry
-var REQUIRED_SERVER_FIELDS = ['command'];
 var VALID_SERVER_FIELDS = ['command', 'args', 'env', 'url', 'type', 'cwd', 'disabled'];
 var VALID_TOP_LEVEL = ['mcpServers'];
 

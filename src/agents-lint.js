@@ -24,9 +24,11 @@ var CLAUDE_SECTIONS = [
 var ANTIPATTERNS = [
   { regex: /you are an? (helpful|expert|senior|skilled|experienced)/i, message: 'Persona instruction detected — AI agent files should contain project facts, not persona prompts', severity: 'warning' },
   { regex: /^(please|try to|you should|i want you to)\b/mi, message: 'Conversational phrasing detected — use direct instructions instead', severity: 'info' },
-  { regex: /\b(gpt-?4|claude|sonnet|opus|gemini|copilot)\b/i, message: 'Model name reference — instructions should be model-agnostic', severity: 'info' },
+  { regex: /\b(gpt-?4|sonnet|opus|gemini|copilot)\b/i, message: 'Model name reference — instructions should be model-agnostic', severity: 'info' },
+  { regex: /\bclaude\b(?!\.md)/i, message: 'Model name reference — instructions should be model-agnostic', severity: 'info' },
   { regex: /```[\s\S]{2000,}?```/m, message: 'Large code block (>2KB) — consider referencing a file instead of inlining', severity: 'warning' },
-  { regex: /\b(always|never)\b[\s\S]{0,30}\b(always|never)\b/i, message: 'Contradictory absolutes near each other — check for conflicting instructions', severity: 'warning' },
+  { regex: /\balways\b[\s\S]{0,50}\bnever\b/i, message: 'Contradictory absolutes near each other — "always" and "never" may conflict', severity: 'warning' },
+  { regex: /\bnever\b[\s\S]{0,50}\balways\b/i, message: 'Contradictory absolutes near each other — "never" and "always" may conflict', severity: 'warning' },
 ];
 
 // Checks for .cursor/agents/*.md files
@@ -146,18 +148,27 @@ function lintClaudeMd(dir) {
     }
   }
 
-  // Check for empty sections (heading followed by heading)
+  // Check for empty sections (heading followed by heading of same or higher level)
   for (var i = 0; i < lines.length - 1; i++) {
-    if (/^#{1,4}\s+/.test(lines[i])) {
-      // Look ahead for next non-empty line
-      var nextContent = -1;
-      for (var j = i + 1; j < lines.length; j++) {
-        if (lines[j].trim() !== '') {
-          nextContent = j;
-          break;
-        }
+    var currentHeading = lines[i].match(/^(#{1,4})\s+/);
+    if (!currentHeading) continue;
+    var currentLevel = currentHeading[1].length;
+
+    // Skip H1 titles — they commonly have no body before the first H2
+    if (currentLevel === 1) continue;
+
+    // Look ahead for next non-empty line
+    var nextContent = -1;
+    for (var j = i + 1; j < lines.length; j++) {
+      if (lines[j].trim() !== '') {
+        nextContent = j;
+        break;
       }
-      if (nextContent >= 0 && /^#{1,4}\s+/.test(lines[nextContent])) {
+    }
+    if (nextContent >= 0) {
+      var nextHeading = lines[nextContent].match(/^(#{1,4})\s+/);
+      // Only flag if next heading is same level or higher (not a subsection)
+      if (nextHeading && nextHeading[1].length <= currentLevel) {
         issues.push({
           severity: 'warning',
           message: 'Empty section — heading with no content',
@@ -363,7 +374,8 @@ function formatAgentLint(results, colors) {
     totalInfo += infoCount;
 
     var statusIcon = errorCount > 0 ? RED + '\u2717' : warnCount > 0 ? YELLOW + '\u26A0' : GREEN + '\u2713';
-    var sizeStr = r.size ? DIM + ' (' + Math.round(r.size / 1024) + 'KB, ' + r.lineCount + ' lines)' + RESET : '';
+    var sizeLabel = r.size >= 1024 ? Math.round(r.size / 1024) + 'KB' : r.size + 'B';
+    var sizeStr = r.size ? DIM + ' (' + sizeLabel + ', ' + r.lineCount + ' lines)' + RESET : '';
     lines.push('  ' + statusIcon + RESET + ' ' + BOLD + r.file + RESET + sizeStr);
 
     for (var j = 0; j < fileIssues.length; j++) {

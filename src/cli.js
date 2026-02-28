@@ -18,7 +18,7 @@ const { exportRules, importRules, detectDrift, setBaseline } = require('./team-s
 const { lintAgentConfigs, formatAgentLint } = require('./agents-lint');
 const { lintMcpConfigs, formatMcpLint } = require('./mcp-lint');
 
-const VERSION = '1.6.0';
+const VERSION = '1.6.1';
 
 const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
