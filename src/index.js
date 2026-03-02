@@ -1,6 +1,7 @@
 const fs = require('fs');
 const { parseFrontmatter } = require("./frontmatter");
 const path = require('path');
+const { extractDirectives, findDirectiveConflicts } = require('./directives');
 
 const VAGUE_PATTERNS = [
   'write clean code',
@@ -82,6 +83,36 @@ function similarity(textA, textB) {
   return intersection.size / union.size;
 }
 
+// Strict subject matching for intra-rule conflict detection.
+// Requires exact match or core-noun containment (short subject in long subject).
+function selfConflictSubjectsMatch(a, b) {
+  if (a === b) return true;
+  // Extract core noun: first 1-3 words
+  const coreA = a.split(/\s+/).slice(0, 3).join(' ');
+  const coreB = b.split(/\s+/).slice(0, 3).join(' ');
+  if (coreA === coreB) return true;
+  // Short subject (1-3 words) contained in the other — must be at start (core noun)
+  const wordsA = a.split(/\s+/).length;
+  const wordsB = b.split(/\s+/).length;
+  if (wordsA <= 3 && b.startsWith(a)) return true;
+  if (wordsB <= 3 && a.startsWith(b)) return true;
+  return false;
+}
+
+function actionsContradict(a, b) {
+  const opposites = {
+    'use': ['never', 'avoid', 'don\'t', 'do not', 'no', 'remove', 'exclude', 'disable'],
+    'prefer': ['avoid', 'never', 'don\'t', 'do not', 'no'],
+    'always': ['never', 'avoid', 'don\'t', 'do not', 'no'],
+    'add': ['remove', 'exclude', 'no'],
+    'include': ['exclude', 'remove', 'no'],
+    'enable': ['disable', 'no'],
+  };
+  if (opposites[a] && opposites[a].includes(b)) return true;
+  if (opposites[b] && opposites[b].includes(a)) return true;
+  return false;
+}
+
 async function lintMdcFile(filePath) {
   var content;
   try {
@@ -149,6 +180,52 @@ async function lintMdcFile(filePath) {
 
   // Get body content for additional checks
   const body = getBody(content);
+
+  // Self-conflict check: contradictory directives within the same rule
+  // Uses strict subject matching to avoid false positives (intra-rule context
+  // means "use X" and "avoid Y" often appear together as complementary advice)
+  if (body.length > 10) {
+    const directives = extractDirectives(body);
+    if (directives.length >= 2) {
+      const seen = new Set();
+      for (let di = 0; di < directives.length; di++) {
+        for (let dj = di + 1; dj < directives.length; dj++) {
+          const a = directives[di];
+          const b = directives[dj];
+          // Strict match: subjects must be identical or one is a substring of 
+          // the other AND the shorter subject is the core noun (<=3 words)
+          if (!selfConflictSubjectsMatch(a.subject, b.subject)) continue;
+          if (!actionsContradict(a.action, b.action)) continue;
+          const key = [a.subject, b.subject].sort().join('|');
+          if (seen.has(key)) continue;
+          seen.add(key);
+          issues.push({
+            severity: 'error',
+            message: `Contradictory instructions in same rule: "${a.action} ${a.subject}" vs "${b.action} ${b.subject}"`,
+            hint: 'This rule tells the AI to do opposite things. Remove one instruction or split into separate rules.',
+          });
+        }
+      }
+    }
+  }
+
+  // Semantic conflict check within same rule (SEMANTIC_PAIRS)
+  if (body.length > 10) {
+    const seenTopics = new Set();
+    for (const pair of SEMANTIC_PAIRS) {
+      if (pair.a.test(body) && pair.b.test(body)) {
+        if (seenTopics.has(pair.topic)) continue;
+        seenTopics.add(pair.topic);
+        const aMatch = body.match(pair.a);
+        const bMatch = body.match(pair.b);
+        issues.push({
+          severity: 'error',
+          message: `Contradictory instructions in same rule about ${pair.topic}: "${aMatch[0]}" vs "${bMatch[0]}"`,
+          hint: 'This rule tells the AI to do opposite things. Remove one instruction or split into separate rules.',
+        });
+      }
+    }
+  }
 
   // 1. Rule too long
   if (body.length > 2000) {
@@ -1928,7 +2005,7 @@ const SEMANTIC_PAIRS = [
   { a: /\brequire\s+JSDoc\b/i, b: /\bavoid\s+JSDoc\b/i, topic: 'documentation approach' },
 ];
 
-function extractDirectives(content) {
+function extractSimpleDirectives(content) {
   // Extract actionable instructions from rule body (after frontmatter)
   const body = content.replace(/^---[\s\S]*?---\n?/, '').toLowerCase();
   const directives = [];
@@ -1974,7 +2051,7 @@ function detectConflicts(dir) {
     const fm = parseFrontmatter(conflictContent);
     const globs = fm.data ? parseGlobs(fm.data.globs) : [];
     const alwaysApply = fm.data && fm.data.alwaysApply;
-    const directives = extractDirectives(conflictContent);
+    const directives = extractSimpleDirectives(conflictContent);
     const body = getBody(conflictContent);
     parsed.push({ file, filePath, globs, alwaysApply, directives, content: conflictContent, body });
   }

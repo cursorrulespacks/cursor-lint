@@ -4095,6 +4095,37 @@ Log all errors with stack traces.`);
     assert.strictEqual(fm.data.description, longDesc);
   });
 
+  // FP-REGRESSION: Self-contradicting rule within single file must be caught
+  // Source: User report (playground) — "Always use semicolons" + "Avoid semicolons" in same rule showed 0 issues
+  await asyncTest('FP-REGRESSION: intra-rule contradiction "use X" vs "avoid X" detected', async () => {
+    setupTestProject();
+    const filePath = writeFixture('.cursor/rules/self-conflict.mdc', `---
+description: Style rules
+alwaysApply: true
+---
+Always use semicolons at the end of every statement.
+
+Avoid semicolons.`);
+    const result = await lintMdcFile(filePath);
+    const conflicts = result.issues.filter(i => i.message.includes('Contradict'));
+    assert(conflicts.length >= 1, 'Should detect self-contradiction about semicolons');
+    assert(conflicts[0].severity === 'error');
+  });
+
+  // FP-REGRESSION: Complementary advice in same rule must NOT flag as contradiction
+  await asyncTest('FP-REGRESSION: complementary "use asyncio" + "avoid mixing" is NOT a conflict', async () => {
+    setupTestProject();
+    const filePath = writeFixture('.cursor/rules/no-conflict.mdc', `---
+description: Python async
+alwaysApply: true
+---
+Use asyncio.create_task() to run tasks in background.
+Avoid mixing blocking and async code (use asyncio.to_thread for blocking calls).`);
+    const result = await lintMdcFile(filePath);
+    const conflicts = result.issues.filter(i => i.message.includes('Contradict'));
+    assert(conflicts.length === 0, 'Complementary async advice should not flag as conflict');
+  });
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Test Summary & Cleanup
   // ─────────────────────────────────────────────────────────────────────────────
