@@ -21,7 +21,7 @@ exit:0
   ℹ Agent skills
     No agent skills found (optional but helpful for complex workflows)
 
-  4 passed  2 fixable
+  4 passed  2 issues
 
   See details:  npx cursor-doctor lint
   Auto-fix:     npx cursor-doctor fix  (Pro, $9 one-time)
