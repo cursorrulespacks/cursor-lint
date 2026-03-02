@@ -300,11 +300,14 @@ function fixPleaseThankYou(content) {
       return null;
     }
     
-    // "Please X" at start of line → "X" (capitalize first word)
-    if (/^please\s+/i.test(trimmed)) {
+    // "Please X" at start of line or after list marker → "X" (capitalize first word)
+    const pleaseMatch = trimmed.match(/^([-*]\s+)?please\s+/i);
+    if (pleaseMatch) {
       modified = true;
-      const rest = trimmed.replace(/^please\s+/i, '');
-      return line.replace(trimmed, rest.charAt(0).toUpperCase() + rest.slice(1));
+      const prefix = pleaseMatch[1] || '';
+      const rest = trimmed.replace(/^([-*]\s+)?please\s+/i, '');
+      const fixed = prefix + rest.charAt(0).toUpperCase() + rest.slice(1);
+      return line.replace(trimmed, fixed);
     }
     
     // "X please" at end → "X"
@@ -342,10 +345,10 @@ function fixFirstPerson(content) {
   const lines = body.split('\n');
   const fixedLines = lines.map(line => {
     const patterns = [
-      /^(\s*)I want you to\s+/i,
-      /^(\s*)I need you to\s+/i,
-      /^(\s*)I'd like you to\s+/i,
-      /^(\s*)My preference is (to\s+)?/i,
+      /^(\s*(?:[-*]\s+)?)I want you to\s+/i,
+      /^(\s*(?:[-*]\s+)?)I need you to\s+/i,
+      /^(\s*(?:[-*]\s+)?)I'd like you to\s+/i,
+      /^(\s*(?:[-*]\s+)?)My preference is (to\s+)?/i,
     ];
     
     for (const pattern of patterns) {
