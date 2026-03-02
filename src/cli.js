@@ -234,7 +234,11 @@ async function main() {
       console.log();
     } else if (fixable > 0) {
       console.log('  ' + DIM + 'See details:' + RESET + '  npx cursor-doctor lint');
-      console.log('  ' + DIM + 'Auto-fix:' + RESET + '     npx cursor-doctor fix  ' + DIM + '(Pro, $9 one-time)' + RESET);
+      if (!isLicensed(cwd)) {
+        console.log('  ' + DIM + 'Auto-fix:' + RESET + '     npx cursor-doctor fix  ' + DIM + '(Pro, $9 one-time)' + RESET);
+      } else {
+        console.log('  ' + DIM + 'Auto-fix:' + RESET + '     npx cursor-doctor fix');
+      }
       console.log();
     } else if (passes > 0 && (report.grade === 'A' || report.grade === 'B')) {
       console.log('  ' + GREEN + String.fromCharCode(10024) + ' Your Cursor rules look good. Nothing to fix.' + RESET);
@@ -363,15 +367,36 @@ async function main() {
     console.log(parts.join(', '));
     if (totalErrors > 0 || totalWarnings > 0) {
       console.log();
+      // Check if any issues are auto-fixable (exclude contradictions)
+      var hasFixableIssues = false;
+      for (var fi = 0; fi < results.length; fi++) {
+        var fIssues = results[fi].issues || [];
+        for (var fj = 0; fj < fIssues.length; fj++) {
+          if (fIssues[fj].fixable !== false && (fIssues[fj].severity === 'error' || fIssues[fj].severity === 'warning')) {
+            hasFixableIssues = true;
+            break;
+          }
+        }
+        if (hasFixableIssues) break;
+      }
+      var licensed = isLicensed(cwd);
       if (totalWarnings <= 3 && totalErrors === 0) {
         // Few cosmetic issues — emphasize deeper analysis
         console.log('  ' + BOLD + 'Go deeper:' + RESET + ' npx cursor-doctor audit  ' + DIM + '(full diagnostic)' + RESET);
-        console.log('  ' + DIM + 'Also:' + RESET + ' conflicts, perf, fix  ' + DIM + '(Pro, $9 one-time)' + RESET);
-      } else {
+        if (!licensed) {
+          console.log('  ' + DIM + 'Also:' + RESET + ' conflicts, perf, fix  ' + DIM + '(Pro, $9 one-time)' + RESET);
+          console.log('  ' + DIM + PURCHASE_URL + RESET);
+        }
+      } else if (hasFixableIssues) {
         console.log('  ' + BOLD + 'Auto-fix:' + RESET + ' npx cursor-doctor fix');
-        console.log('  Most issues above can be fixed automatically (Pro, $9 one-time)');
+        if (!licensed) {
+          console.log('  Most issues above can be fixed automatically (Pro, $9 one-time)');
+          console.log('  ' + DIM + PURCHASE_URL + RESET);
+        }
+      } else {
+        // Only unfixable issues (contradictions) — don't suggest auto-fix
+        console.log('  ' + DIM + 'These issues require manual review. Auto-fix cannot resolve contradictions.' + RESET);
       }
-      console.log('  ' + DIM + PURCHASE_URL + RESET);
     }
     console.log();
     process.exit(totalErrors > 0 ? 1 : 0);
@@ -1405,9 +1430,30 @@ async function main() {
                        results.annotated.length + results.generated.length + results.deduped.length;
 
     if (totalActions === 0) {
-      console.log('  ' + GREEN + String.fromCharCode(10003) + RESET + ' Nothing to fix. Setup looks clean.');
+      // Check if there are still lint issues that can't be auto-fixed
+      var postLint = await lintProject(cwd);
+      var remainingIssues = [];
+      for (var ri = 0; ri < postLint.length; ri++) {
+        var rIssues = (postLint[ri].issues || []).filter(function(i) { return i.fixable === false && (i.severity === 'error' || i.severity === 'warning'); });
+        if (rIssues.length > 0) remainingIssues.push({ file: postLint[ri].file, issues: rIssues });
+      }
+      if (remainingIssues.length > 0) {
+        console.log('  ' + YELLOW + String.fromCharCode(9888) + RESET + ' No auto-fixable issues found, but some problems need manual attention:');
+        console.log();
+        for (var ri = 0; ri < remainingIssues.length; ri++) {
+          var relPath = path.relative(cwd, remainingIssues[ri].file);
+          for (var rj = 0; rj < remainingIssues[ri].issues.length; rj++) {
+            var rIssue = remainingIssues[ri].issues[rj];
+            var rIcon = rIssue.severity === 'error' ? RED + String.fromCharCode(10007) + RESET : YELLOW + String.fromCharCode(9888) + RESET;
+            console.log('  ' + rIcon + ' ' + relPath + ': ' + rIssue.message);
+            if (rIssue.hint) console.log('    ' + DIM + String.fromCharCode(8594) + ' ' + rIssue.hint + RESET);
+          }
+        }
+      } else {
+        console.log('  ' + GREEN + String.fromCharCode(10003) + RESET + ' Nothing to fix. Setup looks clean.');
+      }
       console.log();
-      await exitClean(0);
+      await exitClean(remainingIssues.length > 0 ? 1 : 0);
     }
 
     for (var i = 0; i < results.fixed.length; i++) {

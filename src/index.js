@@ -203,6 +203,7 @@ async function lintMdcFile(filePath) {
             severity: 'error',
             message: `Contradictory instructions in same rule: "${a.action} ${a.subject}" vs "${b.action} ${b.subject}"`,
             hint: 'This rule tells the AI to do opposite things. Remove one instruction or split into separate rules.',
+            fixable: false,
           });
         }
       }
@@ -222,6 +223,7 @@ async function lintMdcFile(filePath) {
           severity: 'error',
           message: `Contradictory instructions in same rule about ${pair.topic}: "${aMatch[0]}" vs "${bMatch[0]}"`,
           hint: 'This rule tells the AI to do opposite things. Remove one instruction or split into separate rules.',
+          fixable: false,
         });
       }
     }
@@ -609,6 +611,7 @@ async function lintMdcFile(filePath) {
         severity: 'error',
         message: `Rule has conflicting instructions about ${subject}`,
         hint: `Rule contains both "${a}" and "${b}". Choose one approach.`,
+        fixable: false,
       });
     }
   }
