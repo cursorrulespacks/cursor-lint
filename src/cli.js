@@ -335,18 +335,54 @@ async function main() {
     var totalPassed = 0;
     var sevOrder = { error: 0, warning: 1, info: 2 };
     var verbose = args.includes('--verbose') || args.includes('-v');
+
+    // Group identical per-file issues when 5+ files share the same message
+    var GROUP_THRESHOLD = 5;
+    var perFileResults = results.filter(function(r) { return !r.file.endsWith('/') && !r.file.endsWith('\\') && fs.existsSync(r.file) && fs.statSync(r.file).isFile(); });
+    var dirResults = results.filter(function(r) { return !perFileResults.includes(r); });
+    var issueFileMap = {}; // message -> [relPath, ...]
+    for (var gi = 0; gi < perFileResults.length; gi++) {
+      var gResult = perFileResults[gi];
+      var gVisible = verbose ? gResult.issues : gResult.issues.filter(function(iss) { return !iss.verboseOnly; });
+      for (var gj = 0; gj < gVisible.length; gj++) {
+        var gKey = gVisible[gj].severity + '::' + gVisible[gj].message;
+        if (!issueFileMap[gKey]) issueFileMap[gKey] = { issue: gVisible[gj], files: [] };
+        issueFileMap[gKey].files.push(path.relative(cwd, gResult.file) || '.');
+      }
+    }
+    var groupedMessages = {};
+    Object.keys(issueFileMap).forEach(function(key) {
+      if (issueFileMap[key].files.length >= GROUP_THRESHOLD) {
+        groupedMessages[key] = issueFileMap[key];
+      }
+    });
+
     for (var i = 0; i < results.length; i++) {
       var result = results[i];
       var relPath = path.relative(cwd, result.file) || '.';
       // Filter out verboseOnly issues unless --verbose
       var visibleIssues = verbose ? result.issues : result.issues.filter(function(iss) { return !iss.verboseOnly; });
-      if (visibleIssues.length === 0) {
-        if (result.issues.length === 0) totalPassed++;
-        if (verbose) {
+      // Skip per-file issues that will be shown as grouped
+      var ungroupedIssues = visibleIssues.filter(function(iss) {
+        var gKey = iss.severity + '::' + iss.message;
+        return !groupedMessages[gKey];
+      });
+      if (ungroupedIssues.length === 0) {
+        if (visibleIssues.length === 0 && result.issues.length === 0) totalPassed++;
+        else {
+          // Count grouped issues toward totals
+          for (var ci = 0; ci < visibleIssues.length; ci++) {
+            if (visibleIssues[ci].severity === 'error') totalErrors++;
+            else if (visibleIssues[ci].severity === 'warning') totalWarnings++;
+            else totalInfo++;
+          }
+          if (ungroupedIssues.length === 0 && visibleIssues.length > 0) continue; // skip file, shown in group
+        }
+        if (verbose && visibleIssues.length === 0) {
           console.log(DIM + relPath + ' — ok' + RESET);
         }
       } else {
-        var sorted = visibleIssues.slice().sort(function(a, b) {
+        var sorted = ungroupedIssues.slice().sort(function(a, b) {
           return (sevOrder[a.severity] || 2) - (sevOrder[b.severity] || 2);
         });
         var fileErrors = 0, fileWarnings = 0, fileInfo = 0;
@@ -354,6 +390,15 @@ async function main() {
           if (sorted[j].severity === 'error') fileErrors++;
           else if (sorted[j].severity === 'warning') fileWarnings++;
           else fileInfo++;
+        }
+        // Also count grouped issues for this file
+        for (var ci = 0; ci < visibleIssues.length; ci++) {
+          var gKey = visibleIssues[ci].severity + '::' + visibleIssues[ci].message;
+          if (groupedMessages[gKey]) {
+            if (visibleIssues[ci].severity === 'error') totalErrors++;
+            else if (visibleIssues[ci].severity === 'warning') totalWarnings++;
+            else totalInfo++;
+          }
         }
         var fileSummaryParts = [];
         if (fileErrors > 0) fileSummaryParts.push(RED + fileErrors + ' error' + (fileErrors > 1 ? 's' : '') + RESET);
@@ -370,6 +415,27 @@ async function main() {
           console.log('  ' + icon + ' ' + issue.message + lineInfo);
           if (issue.hint) console.log('    ' + DIM + String.fromCharCode(8594) + ' ' + issue.hint + RESET);
         }
+        console.log();
+      }
+    }
+
+    // Print grouped issues
+    var groupKeys = Object.keys(groupedMessages);
+    if (groupKeys.length > 0) {
+      for (var gki = 0; gki < groupKeys.length; gki++) {
+        var group = groupedMessages[groupKeys[gki]];
+        var gIssue = group.issue;
+        var gFiles = group.files;
+        var gIcon;
+        if (gIssue.severity === 'error') gIcon = RED + String.fromCharCode(10007) + RESET;
+        else if (gIssue.severity === 'warning') gIcon = YELLOW + String.fromCharCode(9888) + RESET;
+        else gIcon = BLUE + String.fromCharCode(8505) + RESET;
+        var shownFiles = gFiles.slice(0, 3).join(', ');
+        var moreCount = gFiles.length - 3;
+        var fileList = moreCount > 0 ? shownFiles + ' +' + moreCount + ' more' : gFiles.join(', ');
+        console.log(gIcon + ' ' + BOLD + gFiles.length + ' files:' + RESET + ' ' + gIssue.message);
+        console.log('  ' + DIM + fileList + RESET);
+        if (gIssue.hint) console.log('  ' + DIM + String.fromCharCode(8594) + ' ' + gIssue.hint + RESET);
         console.log();
       }
     }

@@ -2,38 +2,6 @@ exit:0
 ---
 cursor-doctor vX.X.X -- lint
 
-.cursor/rules/api.mdc  (1 warning)
-  ⚠ Empty globs array
-    → globs: [] means this rule has no file targets. Either add patterns like globs: ["**/*.ts", "**/*.tsx"] or remove globs and set alwaysApply: true.
-
-.cursor/rules/errors.mdc  (1 warning)
-  ⚠ Empty globs array
-    → globs: [] means this rule has no file targets. Either add patterns like globs: ["**/*.ts", "**/*.tsx"] or remove globs and set alwaysApply: true.
-
-.cursor/rules/general.mdc  (1 warning)
-  ⚠ Empty globs array
-    → globs: [] means this rule has no file targets. Either add patterns like globs: ["**/*.ts", "**/*.tsx"] or remove globs and set alwaysApply: true.
-
-.cursor/rules/logging.mdc  (1 warning)
-  ⚠ Empty globs array
-    → globs: [] means this rule has no file targets. Either add patterns like globs: ["**/*.ts", "**/*.tsx"] or remove globs and set alwaysApply: true.
-
-.cursor/rules/react.mdc  (1 warning)
-  ⚠ Empty globs array
-    → globs: [] means this rule has no file targets. Either add patterns like globs: ["**/*.ts", "**/*.tsx"] or remove globs and set alwaysApply: true.
-
-.cursor/rules/security.mdc  (1 warning)
-  ⚠ Empty globs array
-    → globs: [] means this rule has no file targets. Either add patterns like globs: ["**/*.ts", "**/*.tsx"] or remove globs and set alwaysApply: true.
-
-.cursor/rules/testing.mdc  (1 warning)
-  ⚠ Empty globs array
-    → globs: [] means this rule has no file targets. Either add patterns like globs: ["**/*.ts", "**/*.tsx"] or remove globs and set alwaysApply: true.
-
-.cursor/rules/typescript.mdc  (1 warning)
-  ⚠ Empty globs array
-    → globs: [] means this rule has no file targets. Either add patterns like globs: ["**/*.ts", "**/*.tsx"] or remove globs and set alwaysApply: true.
-
 .cursor/rules  (1 warning)
   ⚠ Possible duplicate rules (8 similar): api.mdc, errors.mdc, general.mdc, logging.mdc, react.mdc, security.mdc, testing.mdc, typescript.mdc
     → These rules have very similar content. Differentiate them or merge into fewer rules.
@@ -45,6 +13,10 @@ cursor-doctor vX.X.X -- lint
 .cursor/rules  (1 warning)
   ⚠ Project has 8 rules with alwaysApply:true
     → Too many global rules waste context tokens on every request. Use globs to scope rules to specific files.
+
+⚠ 8 files: Empty globs array
+  .cursor/rules/api.mdc, .cursor/rules/errors.mdc, .cursor/rules/general.mdc +5 more
+  → globs: [] means this rule has no file targets. Either add patterns like globs: ["**/*.ts", "**/*.tsx"] or remove globs and set alwaysApply: true.
 
 ──────────────────────────────────────────────────
 10 warnings, 1 info
