@@ -65,11 +65,23 @@ or our own use) that our test suite DIDN'T catch, log it here. Then write the te
 - **Test written:** Implicit in existing autofix tests (all check .changes array)
 - **Category:** regression
 
+### 2026-03-02 Intra-rule self-conflict not detected
+- **Found by:** User report (playground) — "Always use semicolons" + "Avoid semicolons" in same rule showed 0 issues
+- **Root cause:** Conflict detection only compared directives across different files (pairwise), never within a single rule body
+- **Test written:** test/test.js FP-REGRESSION: intra-rule contradiction "use X" vs "avoid X" detected
+- **Category:** FP-REGRESSION
+
+### 2026-03-02 Complementary advice false positive (asyncio)
+- **Found by:** Registry rules failing lint after self-conflict feature added
+- **Root cause:** subjectsSimilar() too aggressive — matched "use asyncio" vs "avoid mixing...asyncio" on shared word
+- **Test written:** test/test.js FP-REGRESSION: complementary "use asyncio" + "avoid mixing" is NOT a conflict
+- **Category:** FP-REGRESSION
+
 ## Stats
 
 | Period | Bugs found manually | Tests retroactively added |
 |--------|-------------------|--------------------------|
-| Mar 2026 | 2 | 2 |
+| Mar 2026 | 4 | 4 |
 | Feb 2026 (late) | 6 | 6 |
 
 **Target: 100% retroactive coverage.** Every manual find gets a test.
