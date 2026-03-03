@@ -99,6 +99,8 @@ function showHelp() {
     DIM + '  npx cursor-doctor-mcp             MCP server (for AI assistants)' + RESET,
     '',
     'Options:',
+    '  --quiet, -q          Suppress non-error output (show errors + summary only)',
+    '  --json               Output results as JSON',
     '  --ignore=<patterns>  Suppress warnings matching patterns (comma-separated)',
     '                       Example: --ignore=vague,empty-globs',
     '',
@@ -141,6 +143,15 @@ async function main() {
   }
 
   var asJson = args.includes('--json');
+  var quiet = args.includes('--quiet') || args.includes('-q');
+
+  // In quiet mode, only errors and the final summary line are shown
+  var _realLog = console.log;
+  if (quiet && !args.includes('--help') && !args.includes('-h')) {
+    console.log = function() {};
+  }
+  function qlog() { _realLog.apply(console, arguments); }
+
   var command = args.find(function(a) { return !a.startsWith('-'); }) || 'scan';
   
   // Parse path argument (first non-flag arg after command)
@@ -223,8 +234,8 @@ async function main() {
 
     var passes = report.checks.filter(function(c) { return c.status === 'pass'; }).length;
     var issues = report.checks.filter(function(c) { return c.status === 'fail' || c.status === 'warn'; }).length;
-    console.log('  ' + GREEN + passes + ' passed' + RESET + '  ' + (issues > 0 ? YELLOW + issues + ' issue' + (issues > 1 ? 's' : '') + RESET : ''));
-    console.log();
+    qlog('  ' + GREEN + passes + ' passed' + RESET + '  ' + (issues > 0 ? YELLOW + issues + ' issue' + (issues > 1 ? 's' : '') + RESET : ''));
+    qlog();
 
     // Check if user has no rules at all (no-rules footer should push to init, not lint/fix)
     var hasNoRules = report.checks.some(function(c) { return c.name === 'Rules exist' && c.status === 'fail'; });
@@ -447,13 +458,13 @@ async function main() {
         console.log();
       }
     }
-    console.log(String.fromCharCode(9472).repeat(50));
+    qlog(String.fromCharCode(9472).repeat(50));
     var parts = [];
     if (totalErrors > 0) parts.push(RED + totalErrors + ' error' + (totalErrors > 1 ? 's' : '') + RESET);
     if (totalWarnings > 0) parts.push(YELLOW + totalWarnings + ' warning' + (totalWarnings > 1 ? 's' : '') + RESET);
     if (totalInfo > 0) parts.push(BLUE + totalInfo + ' info' + RESET);
     if (totalPassed > 0) parts.push(GREEN + totalPassed + ' passed' + RESET);
-    console.log(parts.join(', '));
+    qlog(parts.join(', '));
     if (totalErrors > 0 || totalWarnings > 0) {
       console.log();
       // Check if any issues are auto-fixable (exclude contradictions)
