@@ -4,74 +4,93 @@
 
 **Your Cursor rules have bugs. This finds them.**
 
-You wrote rules. Cursor still ignores them. cursor-doctor tells you exactly what's wrong: conflicting directives, broken globs, vague instructions the AI can't act on, token budget waste, and 100+ other issues. Treat your rules like code, not config. One command. Zero dependencies.
-
-![cursor-doctor scan demo](https://raw.githubusercontent.com/nedcodes-ok/cursor-doctor/main/images/demo.gif)
-
-## Quick Start
+You wrote rules. Cursor still ignores them. cursor-doctor tells you exactly what's wrong: conflicting directives, broken globs, vague instructions the AI can't act on, token budget waste, and 100+ other issues. One command. Zero dependencies.
 
 ```bash
 npx cursor-doctor scan
 ```
 
-No install needed. Runs directly with npx.
+![cursor-doctor scan demo](https://raw.githubusercontent.com/nedcodes-ok/cursor-doctor/main/images/demo.gif)
 
-> **Also available as a [VS Code/Cursor extension](https://marketplace.visualstudio.com/items?itemName=nedcodes.cursor-doctor)** — inline diagnostics, status bar health grade, quick-fix code actions. Search "Cursor Doctor" in the extensions panel.
+## What you get
 
-## What It Checks
+```
+  ▒▒ Cursor Health: B ▒▒
 
-100+ lint rules across these categories:
+  ██████████████████████████░░░░  84%
 
-| Check | Examples |
-|-------|---------|
-| **Syntax** | Broken YAML, missing frontmatter, boolean strings, unclosed code blocks |
-| **Conflicts** | Contradictory instructions across files (48 semantic patterns) |
-| **Token budget** | Rules burning context window, dead rules, excessive alwaysApply |
-| **Globs** | Patterns that don't match files, regex in globs, overlapping coverage |
-| **Prompt quality** | Vague instructions, first person, politeness tokens, negation-only rules |
-| **Structure** | File naming, duplicate content, missing descriptions, legacy .cursorrules |
+  ✗ Conflict: "always use semicolons" vs "omit semicolons" in 2 files
+  ✗ Glob *.tsx doesn't match any files in your project
+  ⚠ 3 rules use alwaysApply — burning 2,400 tokens on every request
+  ⚠ "write clean code" is too vague for the AI to act on
+  ✓ Frontmatter valid across 12 rules
+  ✓ No legacy .cursorrules detected
+
+  8 passed  4 issues  (2 auto-fixable)
+```
+
+Not generic warnings. Issues specific to your rules, with the exact file and line.
+
+## Why this exists
+
+We scanned [50 real open-source projects](https://nedcodes.dev/guides/cursor-rules-health-50-projects) and found that **82% had at least one broken or misconfigured rule**. The most common issues: contradictory instructions across files, glob patterns that match nothing, and vague rules the AI silently ignores.
 
 ## Commands
 
-```bash
-npx cursor-doctor scan             # Find what's wrong (default)
-npx cursor-doctor fix              # Auto-fix everything (Pro)
-npx cursor-doctor fix --preview    # Preview fixes (free)
-npx cursor-doctor lint             # Detailed rule-by-rule output
-npx cursor-doctor check            # CI pass/fail (exit 0 or 1)
-npx cursor-doctor init             # Generate rules for your stack
-npx cursor-doctor install react    # Install community rule packs
-npx cursor-doctor audit            # Full diagnostic report (Pro)
-npx cursor-doctor conflicts        # Cross-format conflicts (Pro)
-npx cursor-doctor test <file>      # AI rule adherence testing (Pro)
-npx cursor-doctor team drift       # Detect config drift (Pro)
-```
+| Command | What it does | Free? |
+|---------|-------------|-------|
+| `npx cursor-doctor scan` | Health check with letter grade | ✅ |
+| `npx cursor-doctor lint` | Rule-by-rule detailed diagnostics | ✅ |
+| `npx cursor-doctor check` | CI pass/fail (exit code 0 or 1) | ✅ |
+| `npx cursor-doctor init` | Generate starter rules for your stack | ✅ |
+| `npx cursor-doctor install react` | Install community rule packs | ✅ |
+| `npx cursor-doctor fix --preview` | Preview auto-fixes before applying | ✅ |
+| `npx cursor-doctor fix` | Apply all auto-fixes | Pro |
+| `npx cursor-doctor audit` | Full diagnostic report | Pro |
+| `npx cursor-doctor conflicts` | Cross-format conflict detection | Pro |
+| `npx cursor-doctor test <file>` | AI rule adherence testing | Pro |
+| `npx cursor-doctor team drift` | Detect config drift across team | Pro |
 
-Run `cursor-doctor help` for the full list.
+## What it checks
 
-## Auto-Fix (Pro)
+100+ lint rules:
+
+- **Conflicts** — contradictory instructions across files (48 semantic patterns)
+- **Syntax** — broken YAML frontmatter, boolean strings, unclosed code blocks
+- **Token budget** — rules burning context window, dead rules, excessive alwaysApply
+- **Globs** — patterns that don't match files, regex in globs, overlapping coverage
+- **Prompt quality** — vague instructions, first person, politeness tokens, negation-only rules
+- **Structure** — file naming, duplicate content, missing descriptions, legacy .cursorrules
+
+## Auto-fix (Pro)
 
 34 auto-fixers: frontmatter repair, glob syntax, boolean strings, whitespace, TODO removal, duplicate descriptions, heading normalization, and more.
 
 ```bash
 npx cursor-doctor fix --preview    # See what would change (free)
-npx cursor-doctor fix              # Apply all fixes
+npx cursor-doctor fix              # Apply all fixes (Pro)
 ```
 
-**Get a Pro key ($9 one-time):** [nedcodes.gumroad.com/l/cursor-doctor-pro](https://nedcodes.gumroad.com/l/cursor-doctor-pro)
+**$9 one-time** at [nedcodes.gumroad.com/l/cursor-doctor-pro](https://nedcodes.gumroad.com/l/cursor-doctor-pro). If it doesn't find real, fixable issues in your project, email hello@nedcodes.dev for a full refund.
 
-If Pro doesn't find real, fixable issues, email hello@nedcodes.dev for a full refund.
-
-## VS Code / Cursor Extension
+## VS Code / Cursor extension
 
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/nedcodes.cursor-doctor?label=VS%20Code%20Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=nedcodes.cursor-doctor)
 [![OpenVSX](https://img.shields.io/open-vsx/v/nedcodes/cursor-doctor?label=OpenVSX&color=purple)](https://open-vsx.org/extension/nedcodes/cursor-doctor)
 
 Search **"Cursor Doctor"** in the extensions panel. Health grade in your status bar. Inline diagnostics on save. Quick-fix code actions with Pro.
 
+## CI / GitHub Action
+
+Catch broken rules before merge:
+
+```yaml
+- uses: nedcodes-ok/cursor-doctor@v1
+```
+
 ## MCP Server
 
-Use cursor-doctor as an MCP tool in your AI coding assistant. Add to `.cursor/mcp.json`:
+Use cursor-doctor as an MCP tool inside your AI coding assistant:
 
 ```json
 {
@@ -84,37 +103,22 @@ Use cursor-doctor as an MCP tool in your AI coding assistant. Add to `.cursor/mc
 }
 ```
 
-## CI / GitHub Action
-
-Add to any workflow to catch broken rules before merge:
-
-```yaml
-- uses: nedcodes-ok/cursor-doctor@v1
-```
-
-Or with options:
-
-```yaml
-- uses: nedcodes-ok/cursor-doctor@v1
-  with:
-    command: lint  # 'check' (default, pass/fail) or 'lint' (detailed)
-```
-
 ## LSP Server
 
 Real-time diagnostics in Neovim, Zed, or any LSP-compatible editor:
 
 ```bash
 npm install -g cursor-doctor
-# Then configure your editor to use cursor-doctor-lsp
-# See docs at nedcodes.dev for Neovim/Zed setup
+# Configure your editor to use cursor-doctor-lsp
 ```
 
-## Related
+## Related tools
 
-- **[rule-gen](https://github.com/nedcodes-ok/rule-gen)** — Generate rules from your codebase with AI. `npx rulegen-ai`
-- **[rule-porter](https://github.com/nedcodes-ok/rule-porter)** — Convert rules between Cursor, Claude, Copilot, and Windsurf. `npx rule-porter`
-- **[nedcodes.dev](https://nedcodes.dev)** — Guides, playground, and tools for Cursor AI developers.
+| Tool | What | Install |
+|------|------|---------|
+| **[rule-gen](https://github.com/nedcodes-ok/rule-gen)** | Generate rules from your codebase with AI | `npx rulegen-ai` |
+| **[rule-porter](https://github.com/nedcodes-ok/rule-porter)** | Convert rules between Cursor, Claude, Copilot, Windsurf | `npx rule-porter` |
+| **[nedcodes.dev](https://nedcodes.dev)** | Guides, playground, and tools for Cursor AI developers | |
 
 ## License
 
