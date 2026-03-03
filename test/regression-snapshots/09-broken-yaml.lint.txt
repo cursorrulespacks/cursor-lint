@@ -22,3 +22,4 @@ cursor-doctor vX.X.X -- lint
   Auto-fix: npx cursor-doctor fix
   Most issues above can be fixed automatically (Pro, $9 one-time)
   https://nedcodes.gumroad.com/l/cursor-doctor-pro
+  Helpful? ⭐ https://github.com/nedcodes-ok/cursor-doctor

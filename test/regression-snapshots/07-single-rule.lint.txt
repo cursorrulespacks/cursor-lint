@@ -12,3 +12,4 @@ cursor-doctor vX.X.X -- lint
   Go deeper: npx cursor-doctor audit  (full diagnostic)
   Also: conflicts, perf, fix  (Pro, $9 one-time)
   https://nedcodes.gumroad.com/l/cursor-doctor-pro
+  Helpful? ⭐ https://github.com/nedcodes-ok/cursor-doctor
