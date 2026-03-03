@@ -67,8 +67,8 @@ function showHelp() {
     CYAN + BOLD + 'cursor-doctor' + RESET + ' v' + VERSION + ' -- Fix your Cursor rules in seconds.',
     '',
     '  ' + BOLD + 'npx cursor-doctor scan' + RESET + '             Find what\'s wrong ' + DIM + '(default)' + RESET,
-    '  ' + BOLD + 'npx cursor-doctor fix' + RESET + '              Auto-fix everything ' + DIM + '(Pro)' + RESET,
-    '  ' + DIM + 'npx cursor-doctor fix --preview    Preview fixes before buying' + RESET,
+    '  ' + BOLD + 'npx cursor-doctor fix' + RESET + '              Auto-fix (1st fix free, Pro for all)',
+    '  ' + DIM + 'npx cursor-doctor fix --preview    Preview all fixes' + RESET,
     '',
     YELLOW + 'Diagnose:' + RESET,
     '  npx cursor-doctor lint           Detailed rule-by-rule linting',
@@ -267,8 +267,8 @@ async function main() {
           }
         }
         if (!isLicensed(cwd)) {
-          console.log('  ' + BOLD + 'Auto-fix:' + RESET + '     npx cursor-doctor fix  ' + DIM + '(' + fixableCount + ' issue' + (fixableCount > 1 ? 's' : '') + ' fixable)' + RESET);
-          console.log('  ' + DIM + 'Pro key: $9 one-time — ' + PURCHASE_URL + '?utm_source=cli&utm_medium=npx&utm_campaign=scan' + RESET);
+          console.log('  ' + BOLD + String.fromCharCode(9889) + ' ' + fixableCount + ' issue' + (fixableCount > 1 ? 's' : '') + ' can be auto-fixed.' + RESET + '  Run: npx cursor-doctor fix');
+          console.log('  ' + DIM + 'First fix is free. Unlock all: $9 one-time' + RESET);
         } else {
           console.log('  ' + DIM + 'Auto-fix:' + RESET + '     npx cursor-doctor fix');
         }
@@ -495,9 +495,11 @@ async function main() {
             if (fxis[fxj].fixable !== false && (fxis[fxj].severity === 'error' || fxis[fxj].severity === 'warning')) fixCount++;
           }
         }
-        console.log('  ' + BOLD + 'Auto-fix:' + RESET + ' npx cursor-doctor fix  ' + DIM + '(' + fixCount + ' issue' + (fixCount > 1 ? 's' : '') + ' fixable)' + RESET);
         if (!licensed) {
-          console.log('  ' + DIM + 'Pro key: $9 one-time — ' + PURCHASE_URL + '?utm_source=cli&utm_medium=npx&utm_campaign=lint' + RESET);
+          console.log('  ' + BOLD + String.fromCharCode(9889) + ' ' + fixCount + ' issue' + (fixCount > 1 ? 's' : '') + ' can be auto-fixed.' + RESET + '  Run: npx cursor-doctor fix');
+          console.log('  ' + DIM + 'First fix is free. Unlock all: $9 one-time' + RESET);
+        } else {
+          console.log('  ' + BOLD + 'Auto-fix:' + RESET + ' npx cursor-doctor fix  ' + DIM + '(' + fixCount + ' issue' + (fixCount > 1 ? 's' : '') + ' fixable)' + RESET);
         }
       } else {
         // Only unfixable issues (contradictions) — don't suggest auto-fix
@@ -1520,9 +1522,10 @@ async function main() {
   // --- fix (PRO) ---
   if (command === 'fix') {
     var preview = args.includes('--preview');
-    if (!preview && !requirePro(cwd, 'fix')) process.exit(1);
+    var licensed = isLicensed(cwd);
+    var freeFix = !licensed && !preview;
     var dryRun = args.includes('--dry-run') || preview;
-    var results = await autoFix(cwd, { dryRun: dryRun });
+    var results = await autoFix(cwd, { dryRun: dryRun || freeFix, freeFixMode: freeFix });
 
     console.log();
     console.log(CYAN + BOLD + 'cursor-doctor fix' + RESET + (dryRun ? ' ' + DIM + '(dry run)' + RESET : ''));
@@ -1565,26 +1568,44 @@ async function main() {
       await exitClean(remainingIssues.length > 0 ? 1 : 0);
     }
 
-    for (var i = 0; i < results.fixed.length; i++) {
-      var changeText = results.fixed[i].change || (results.fixed[i].changes ? results.fixed[i].changes.join(', ') : 'fixed');
-      console.log('  ' + GREEN + String.fromCharCode(10003) + RESET + ' ' + results.fixed[i].file + ': ' + changeText);
+    if (!freeFix) {
+      for (var i = 0; i < results.fixed.length; i++) {
+        var changeText = results.fixed[i].change || (results.fixed[i].changes ? results.fixed[i].changes.join(', ') : 'fixed');
+        console.log('  ' + GREEN + String.fromCharCode(10003) + RESET + ' ' + results.fixed[i].file + ': ' + changeText);
+      }
+      for (var i = 0; i < results.splits.length; i++) {
+        console.log('  ' + BLUE + String.fromCharCode(9986) + RESET + ' Split ' + results.splits[i].file + ' -> ' + results.splits[i].parts.join(', '));
+      }
+      for (var i = 0; i < results.merged.length; i++) {
+        console.log('  ' + CYAN + String.fromCharCode(8645) + RESET + ' Merged ' + results.merged[i].removed + ' into ' + results.merged[i].kept + ' (' + results.merged[i].overlapPct + '% overlap)');
+      }
+      for (var i = 0; i < results.annotated.length; i++) {
+        console.log('  ' + YELLOW + String.fromCharCode(9888) + RESET + ' Annotated ' + results.annotated[i].file + ' (conflicts with ' + results.annotated[i].conflictsWith + ')');
+      }
+      for (var i = 0; i < results.generated.length; i++) {
+        console.log('  ' + GREEN + String.fromCharCode(10010) + RESET + ' Generated ' + results.generated[i].file + ' (' + results.generated[i].reason + ')');
+      }
+      for (var i = 0; i < results.deduped.length; i++) {
+        console.log('  ' + YELLOW + '!' + RESET + ' ' + results.deduped[i].fileA + ' + ' + results.deduped[i].fileB + ': ' + results.deduped[i].overlapPct + '% overlap (manual review)');
+      }
     }
-    for (var i = 0; i < results.splits.length; i++) {
-      console.log('  ' + BLUE + String.fromCharCode(9986) + RESET + ' Split ' + results.splits[i].file + ' -> ' + results.splits[i].parts.join(', '));
-    }
-    for (var i = 0; i < results.merged.length; i++) {
-      console.log('  ' + CYAN + String.fromCharCode(8645) + RESET + ' Merged ' + results.merged[i].removed + ' into ' + results.merged[i].kept + ' (' + results.merged[i].overlapPct + '% overlap)');
-    }
-    for (var i = 0; i < results.annotated.length; i++) {
-      console.log('  ' + YELLOW + String.fromCharCode(9888) + RESET + ' Annotated ' + results.annotated[i].file + ' (conflicts with ' + results.annotated[i].conflictsWith + ')');
-    }
-    for (var i = 0; i < results.generated.length; i++) {
-      console.log('  ' + GREEN + String.fromCharCode(10010) + RESET + ' Generated ' + results.generated[i].file + ' (' + results.generated[i].reason + ')');
-    }
-    for (var i = 0; i < results.deduped.length; i++) {
-      console.log('  ' + YELLOW + '!' + RESET + ' ' + results.deduped[i].fileA + ' + ' + results.deduped[i].fileB + ': ' + results.deduped[i].overlapPct + '% overlap (manual review)');
-    }
-    if (preview && totalActions > 0) {
+    if (freeFix && totalActions > 0) {
+      // Free fix mode: apply the first fix for free, upsell the rest
+      var firstFix = results.fixed[0];
+      if (firstFix) {
+        // Re-run autoFix but only apply the first file's changes
+        var freeResults = await autoFix(cwd, { dryRun: false, maxFiles: 1 });
+        var freeChangeText = firstFix.change || (firstFix.changes ? firstFix.changes.join(', ') : 'fixed');
+        console.log('  ' + GREEN + String.fromCharCode(10003) + RESET + ' ' + BOLD + 'Fixed: ' + RESET + firstFix.file + ': ' + freeChangeText);
+      }
+      var remainingFixes = totalActions - 1;
+      if (remainingFixes > 0) {
+        console.log();
+        console.log('  ' + BOLD + remainingFixes + ' more fix' + (remainingFixes > 1 ? 'es' : '') + ' available.' + RESET + ' Unlock all with Pro:');
+        console.log('  ' + CYAN + PURCHASE_URL + '?utm_source=cli&utm_medium=npx&utm_campaign=free-fix' + RESET);
+        console.log('  ' + DIM + '$9 one-time. Full refund if it doesn\'t find real issues.' + RESET);
+      }
+    } else if (preview && totalActions > 0) {
       // Count individual changes across all fixed files for accurate messaging
       var totalChanges = 0;
       for (var tci = 0; tci < results.fixed.length; tci++) {

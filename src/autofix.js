@@ -734,9 +734,11 @@ async function autoFix(dir, options = {}) {
   
   // 1. Apply all fixers to each .mdc file
   const entries = fs.readdirSync(rulesDir);
+  var filesFixed = 0;
   
   for (const entry of entries) {
     if (!entry.endsWith('.mdc')) continue;
+    if (options.maxFiles && filesFixed >= options.maxFiles) break;
     
     const filePath = path.join(rulesDir, entry);
     let content = fs.readFileSync(filePath, 'utf-8').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -784,6 +786,7 @@ async function autoFix(dir, options = {}) {
         fs.writeFileSync(filePath, content, 'utf-8');
       }
       results.fixed.push({ file: entry, changes: allChanges });
+      filesFixed++;
     }
   }
   
