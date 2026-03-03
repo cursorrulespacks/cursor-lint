@@ -16,6 +16,8 @@ npx cursor-doctor scan
 
 No install needed. Runs directly with npx.
 
+> **Also available as a [VS Code/Cursor extension](https://marketplace.visualstudio.com/items?itemName=nedcodes.cursor-doctor)** — inline diagnostics, status bar health grade, quick-fix code actions. Search "Cursor Doctor" in the extensions panel.
+
 ## What It Checks
 
 100+ lint rules across these categories:

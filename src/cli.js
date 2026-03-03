@@ -479,6 +479,9 @@ async function main() {
         console.log('  ' + DIM + 'These issues require manual review. Auto-fix cannot resolve contradictions.' + RESET);
       }
     }
+
+    // Star ask
+    console.log('  ' + DIM + 'Helpful? ' + String.fromCharCode(11088) + ' https://github.com/nedcodes-ok/cursor-doctor' + RESET);
     console.log();
     process.exit(totalErrors > 0 ? 1 : 0);
   }
