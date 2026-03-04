@@ -18,7 +18,7 @@ const { lintAgentConfigs, formatAgentLint } = require('./agents-lint');
 const { lintMcpConfigs, formatMcpLint } = require('./mcp-lint');
 const { initProject } = require('./init');
 const { getPackNames, getPack, getAllPacks } = require('./registry');
-const { generateMarkdownBadge, generateHtmlBadge, generateShieldsEndpoint } = require('./badge');
+const { generateMarkdownBadge, generateHtmlBadge, generateShieldsEndpoint, generateShare } = require('./badge');
 
 const VERSION = require('../package.json').version;
 
@@ -322,9 +322,36 @@ async function main() {
       console.log();
     }
 
-    // Star ask — show on every scan (non-intrusive, one line)
-    if (!hasNoRules) {
-      console.log('  ' + DIM + 'Helpful? ' + String.fromCharCode(11088) + ' https://github.com/nedcodes-ok/cursor-doctor' + RESET);
+    // Star ask — show only on A/B grades (happy users more likely to star)
+    if (!hasNoRules && (report.grade === 'A' || report.grade === 'B')) {
+      console.log('  ' + DIM + 'cursor-doctor saved you time? ' + String.fromCharCode(11088) + ' Star it so others can find it too' + RESET);
+      console.log('  ' + DIM + 'https://github.com/nedcodes-ok/cursor-doctor' + RESET);
+      console.log();
+    } else if (!hasNoRules && (report.grade === 'C' || report.grade === 'D' || report.grade === 'F')) {
+      console.log('  ' + DIM + 'Run npx cursor-doctor fix to improve your grade' + RESET);
+      console.log();
+    }
+
+    // --share flag: generate social share URL and badge
+    if (args.includes('--share')) {
+      console.log('  ' + CYAN + BOLD + String.fromCharCode(9881) + ' Share Your Grade' + RESET);
+      console.log();
+      
+      var shareData = await generateShare(cwd);
+      
+      console.log('  ' + BOLD + 'Share on Twitter/X:' + RESET);
+      console.log('  ' + shareData.shareUrl);
+      console.log();
+      
+      console.log('  ' + BOLD + 'README badge:' + RESET);
+      console.log('  ' + shareData.markdownBadge);
+      console.log();
+      
+      if (shareData.opened) {
+        console.log('  ' + GREEN + String.fromCharCode(10003) + ' Opened in browser' + RESET);
+      } else {
+        console.log('  ' + YELLOW + String.fromCharCode(9888) + ' Could not open browser. Copy URL above.' + RESET);
+      }
       console.log();
     }
 
@@ -416,12 +443,71 @@ async function main() {
     }
 
     if (asJson) {
-      var jsonResults = results.map(function(r) {
-        return { file: path.relative(cwd, r.file) || r.file, issues: r.issues };
+      // Get grade from doctor for JSON output
+      var healthReport = await doctor(cwd);
+      
+      // Group issues by severity for each file
+      var jsonFiles = results.map(function(r) {
+        var warnings = [];
+        var errors = [];
+        var info = [];
+        
+        for (var i = 0; i < r.issues.length; i++) {
+          var issue = r.issues[i];
+          var issueObj = {
+            message: issue.message,
+            line: issue.line || null,
+            severity: issue.severity,
+            hint: issue.hint || null
+          };
+          
+          if (issue.severity === 'error') {
+            errors.push(issueObj);
+          } else if (issue.severity === 'warning') {
+            warnings.push(issueObj);
+          } else {
+            info.push(issueObj);
+          }
+        }
+        
+        return {
+          path: path.relative(cwd, r.file) || r.file,
+          warnings: warnings,
+          errors: errors,
+          info: info
+        };
       });
-      console.log(JSON.stringify(jsonResults, null, 2));
-      var hasJsonErrors = results.some(function(r) { return r.issues.some(function(i) { return i.severity === 'error'; }); });
-      process.exit(hasJsonErrors ? 1 : 0);
+      
+      // Calculate summary
+      var totalWarnings = 0;
+      var totalErrors = 0;
+      var totalInfo = 0;
+      var totalPassed = 0;
+      
+      for (var i = 0; i < results.length; i++) {
+        var hasIssues = false;
+        for (var j = 0; j < results[i].issues.length; j++) {
+          var iss = results[i].issues[j];
+          if (iss.severity === 'error') { totalErrors++; hasIssues = true; }
+          else if (iss.severity === 'warning') { totalWarnings++; hasIssues = true; }
+          else { totalInfo++; hasIssues = true; }
+        }
+        if (!hasIssues) totalPassed++;
+      }
+      
+      var jsonOutput = {
+        files: jsonFiles,
+        summary: {
+          totalWarnings: totalWarnings,
+          totalErrors: totalErrors,
+          totalInfo: totalInfo,
+          totalPassed: totalPassed
+        },
+        grade: healthReport.grade
+      };
+      
+      console.log(JSON.stringify(jsonOutput, null, 2));
+      process.exit(totalErrors > 0 ? 1 : 0);
     }
 
     console.log();
@@ -592,8 +678,14 @@ async function main() {
       console.log('  ' + DIM + 'https://marketplace.visualstudio.com/items?itemName=nedcodes.cursor-doctor' + RESET);
     }
 
-    // Star ask
-    console.log('  ' + DIM + 'Helpful? ' + String.fromCharCode(11088) + ' https://github.com/nedcodes-ok/cursor-doctor' + RESET);
+    // Star ask — only show on A/B grades (get grade from doctor)
+    var healthReport = await doctor(cwd);
+    if (healthReport.grade === 'A' || healthReport.grade === 'B') {
+      console.log('  ' + DIM + 'cursor-doctor saved you time? ' + String.fromCharCode(11088) + ' Star it so others can find it too' + RESET);
+      console.log('  ' + DIM + 'https://github.com/nedcodes-ok/cursor-doctor' + RESET);
+    } else if (healthReport.grade === 'C' || healthReport.grade === 'D' || healthReport.grade === 'F') {
+      console.log('  ' + DIM + 'Run npx cursor-doctor fix to improve your grade' + RESET);
+    }
     console.log();
     process.exit(totalErrors > 0 ? 1 : 0);
   }
@@ -1724,8 +1816,14 @@ async function main() {
         console.log('  ' + GREEN + String.fromCharCode(10003) + ' All issues resolved.' + RESET);
       }
       console.log();
-      console.log('  ' + DIM + 'cursor-doctor helped? Star us on GitHub:' + RESET);
-      console.log('  ' + CYAN + 'https://github.com/nedcodes-ok/cursor-doctor' + RESET);
+      // Star ask — only show on A/B grades after successful fix
+      var postFixHealthReport = await doctor(cwd);
+      if (postFixHealthReport.grade === 'A' || postFixHealthReport.grade === 'B') {
+        console.log('  ' + DIM + 'cursor-doctor saved you time? ' + String.fromCharCode(11088) + ' Star it so others can find it too' + RESET);
+        console.log('  ' + DIM + 'https://github.com/nedcodes-ok/cursor-doctor' + RESET);
+      } else if (postFixHealthReport.grade === 'C' || postFixHealthReport.grade === 'D' || postFixHealthReport.grade === 'F') {
+        console.log('  ' + DIM + 'Run npx cursor-doctor fix again to improve your grade further' + RESET);
+      }
     }
     console.log();
     await exitClean((postFixIssues || 0) > 0 ? 1 : 0);

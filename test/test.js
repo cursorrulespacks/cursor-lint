@@ -16,7 +16,7 @@ const { showLoadOrder } = require('../src/order');
 const { migrate } = require('../src/migrate');
 const { verifyProject } = require('../src/verify');
 const { doctor } = require('../src/doctor');
-const { generateBadgeData, generateMarkdownBadge, generateHtmlBadge, generateShieldsEndpoint, GRADE_COLORS } = require('../src/badge');
+const { generateBadgeData, generateMarkdownBadge, generateHtmlBadge, generateShieldsEndpoint, generateShareUrl, GRADE_COLORS } = require('../src/badge');
 
 // Test counters
 let passed = 0;
@@ -4619,6 +4619,155 @@ Write clean code.`);
     assert.strictEqual(GRADE_COLORS.C, 'yellow', 'C should be yellow');
     assert.strictEqual(GRADE_COLORS.D, 'orange', 'D should be orange');
     assert.strictEqual(GRADE_COLORS.F, 'red', 'F should be red');
+  });
+
+  test('generateShareUrl: creates valid Twitter share URL', () => {
+    const shareUrl = generateShareUrl('A', 95);
+    assert(shareUrl.startsWith('https://twitter.com/intent/tweet?text='), 'Should use Twitter intent URL');
+    assert(shareUrl.includes('My%20Cursor%20rules%20scored'), 'Should include message text');
+    assert(shareUrl.includes('A'), 'Should include grade');
+    assert(shareUrl.includes('95'), 'Should include percentage');
+    assert(shareUrl.includes('cursor-doctor'), 'Should mention cursor-doctor');
+    assert(shareUrl.includes('https%3A%2F%2Fgithub.com%2Fnedcodes-ok%2Fcursor-doctor'), 'Should include encoded GitHub URL');
+  });
+
+  test('generateShareUrl: handles different grades', () => {
+    const grades = [
+      { grade: 'A', percentage: 100 },
+      { grade: 'B', percentage: 85 },
+      { grade: 'C', percentage: 70 },
+      { grade: 'D', percentage: 60 },
+      { grade: 'F', percentage: 45 },
+    ];
+    
+    grades.forEach(({ grade, percentage }) => {
+      const shareUrl = generateShareUrl(grade, percentage);
+      assert(shareUrl.includes(grade), `Should include grade ${grade}`);
+      assert(shareUrl.includes(String(percentage)), `Should include percentage ${percentage}`);
+      assert(shareUrl.startsWith('https://twitter.com/intent/tweet?text='), 'Should be a valid Twitter URL');
+    });
+  });
+
+  test('generateShareUrl: properly encodes tweet text', () => {
+    const shareUrl = generateShareUrl('A', 95);
+    // Check that spaces are encoded as %20
+    assert(shareUrl.includes('%20'), 'Should encode spaces');
+    // Check that special characters are encoded
+    assert(!shareUrl.includes(' '), 'Should not have literal spaces');
+    // Decode and verify full message
+    const urlParams = new URL(shareUrl).searchParams;
+    const tweetText = urlParams.get('text');
+    assert(tweetText.includes('My Cursor rules scored A (95%) with cursor-doctor!'), 'Decoded text should match expected format');
+    assert(tweetText.includes('🏥'), 'Should include emoji');
+    assert(tweetText.includes('npx cursor-doctor scan'), 'Should include npx command');
+  });
+
+  // ─── JSON Output Tests ───
+  console.log('\n## JSON Output');
+
+  await asyncTest('lint --json: outputs structured JSON with files, summary, and grade', async () => {
+    setupTestProject();
+    writeFixture('.cursor/rules/test.mdc', `---
+description: Test rule
+globs: ["**/*.js"]
+---
+Always write clean code.`);
+    
+    // Run lint --json via CLI
+    const cliPath = path.join(__dirname, '..', 'src', 'cli.js');
+    let output;
+    try {
+      output = execSync(`node ${cliPath} lint --json`, { 
+        cwd: TEST_PROJECT,
+        encoding: 'utf-8'
+      });
+    } catch (e) {
+      // Command may exit with non-zero code if errors found
+      output = e.stdout;
+    }
+    
+    const json = JSON.parse(output);
+    
+    // Verify structure
+    assert(json.files, 'Should have files array');
+    assert(Array.isArray(json.files), 'files should be an array');
+    assert(json.summary, 'Should have summary object');
+    assert(json.grade, 'Should have grade');
+    
+    // Verify summary fields
+    assert(typeof json.summary.totalWarnings === 'number', 'Should have totalWarnings');
+    assert(typeof json.summary.totalErrors === 'number', 'Should have totalErrors');
+    assert(typeof json.summary.totalInfo === 'number', 'Should have totalInfo');
+    assert(typeof json.summary.totalPassed === 'number', 'Should have totalPassed');
+    
+    // Verify grade is valid
+    assert(['A', 'B', 'C', 'D', 'F'].includes(json.grade), 'Grade should be A-F');
+    
+    // Verify file structure
+    if (json.files.length > 0) {
+      const file = json.files[0];
+      assert(file.path, 'File should have path');
+      assert(Array.isArray(file.warnings), 'File should have warnings array');
+      assert(Array.isArray(file.errors), 'File should have errors array');
+      assert(Array.isArray(file.info), 'File should have info array');
+      
+      // Verify issue structure if any issues exist
+      const allIssues = [...file.warnings, ...file.errors, ...file.info];
+      if (allIssues.length > 0) {
+        const issue = allIssues[0];
+        assert(issue.message, 'Issue should have message');
+        assert(issue.severity, 'Issue should have severity');
+        assert(['error', 'warning', 'info'].includes(issue.severity), 'Severity should be valid');
+      }
+    }
+  });
+
+  await asyncTest('lint --json: groups issues by severity correctly', async () => {
+    setupTestProject();
+    writeFixture('.cursor/rules/test.mdc', `---
+description: Test rule
+---
+# Test
+data:image/png;base64,abc123
+Always write clean code.`);
+    
+    const cliPath = path.join(__dirname, '..', 'src', 'cli.js');
+    let output;
+    try {
+      output = execSync(`node ${cliPath} lint --json`, { 
+        cwd: TEST_PROJECT,
+        encoding: 'utf-8'
+      });
+    } catch (e) {
+      output = e.stdout;
+    }
+    
+    const json = JSON.parse(output);
+    
+    // This rule should have errors (base64), warnings (vague + no globs), and info (description)
+    assert(json.summary.totalErrors > 0, 'Should have errors');
+    assert(json.summary.totalWarnings > 0, 'Should have warnings');
+    
+    // Find the file with issues
+    const fileWithIssues = json.files.find(f => 
+      f.errors.length > 0 || f.warnings.length > 0 || f.info.length > 0
+    );
+    assert(fileWithIssues, 'Should have a file with issues');
+    
+    // Verify errors are in errors array
+    if (fileWithIssues.errors.length > 0) {
+      assert.strictEqual(fileWithIssues.errors[0].severity, 'error', 'Error array should contain errors');
+    }
+    
+    // Verify warnings are in warnings array
+    if (fileWithIssues.warnings.length > 0) {
+      assert.strictEqual(fileWithIssues.warnings[0].severity, 'warning', 'Warning array should contain warnings');
+    }
+    
+    // Verify info are in info array
+    if (fileWithIssues.info.length > 0) {
+      assert.strictEqual(fileWithIssues.info[0].severity, 'info', 'Info array should contain info');
+    }
   });
 
   // ─────────────────────────────────────────────────────────────────────────────

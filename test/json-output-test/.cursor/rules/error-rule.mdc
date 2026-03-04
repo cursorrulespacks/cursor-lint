@@ -1,0 +1,9 @@
+---
+description: Rule with error
+---
+
+# Error Rule
+
+data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==
+
+This should trigger an error for base64 content.

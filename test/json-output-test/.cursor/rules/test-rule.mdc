@@ -1,0 +1,10 @@
+---
+description: Test rule for JSON output
+globs:
+  - "**/*.js"
+---
+
+# Test Rule
+
+Always write clean code and follow best practices.
+This is a vague rule that should trigger a warning.

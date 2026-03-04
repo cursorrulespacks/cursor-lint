@@ -166,6 +166,16 @@ npm install -g cursor-doctor
 | **[rule-porter](https://github.com/nedcodes-ok/rule-porter)** | Convert rules between Cursor, Claude, Copilot, Windsurf | `npx rule-porter` |
 | **[nedcodes.dev](https://nedcodes.dev)** | Guides, playground, and tools for Cursor AI developers | |
 
+## Like cursor-doctor?
+
+If cursor-doctor helps your team ship better AI-assisted code, here's how to support it:
+
+- ⭐ **[Star the repo](https://github.com/nedcodes-ok/cursor-doctor)** — helps other developers find it
+- 🐛 **[Report bugs](https://github.com/nedcodes-ok/cursor-doctor/issues)** — we fix issues fast
+- 💬 **[Join the discussion](https://github.com/nedcodes-ok/cursor-doctor/discussions)** — share patterns, request features, help others
+- 📢 **Share it** — if it saved you debugging time, tell your team
+- 🔧 **Explore the ecosystem** — [rule-gen](https://github.com/nedcodes-ok/rule-gen) generates rules from your codebase, [rule-porter](https://github.com/nedcodes-ok/rule-porter) converts between AI assistants, [cursor-lint](https://github.com/nedcodes-ok/cursor-lint) catches rule issues in real-time
+
 ## License
 
 MIT
