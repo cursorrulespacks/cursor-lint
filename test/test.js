@@ -4621,6 +4621,114 @@ Write clean code.`);
     assert.strictEqual(GRADE_COLORS.F, 'red', 'F should be red');
   });
 
+  // ─── JSON Output Tests ───
+  console.log('\n## JSON Output');
+
+  await asyncTest('lint --json: outputs structured JSON with files, summary, and grade', async () => {
+    setupTestProject();
+    writeFixture('.cursor/rules/test.mdc', `---
+description: Test rule
+globs: ["**/*.js"]
+---
+Always write clean code.`);
+    
+    // Run lint --json via CLI
+    const cliPath = path.join(__dirname, '..', 'src', 'cli.js');
+    let output;
+    try {
+      output = execSync(`node ${cliPath} lint --json`, { 
+        cwd: TEST_PROJECT,
+        encoding: 'utf-8'
+      });
+    } catch (e) {
+      // Command may exit with non-zero code if errors found
+      output = e.stdout;
+    }
+    
+    const json = JSON.parse(output);
+    
+    // Verify structure
+    assert(json.files, 'Should have files array');
+    assert(Array.isArray(json.files), 'files should be an array');
+    assert(json.summary, 'Should have summary object');
+    assert(json.grade, 'Should have grade');
+    
+    // Verify summary fields
+    assert(typeof json.summary.totalWarnings === 'number', 'Should have totalWarnings');
+    assert(typeof json.summary.totalErrors === 'number', 'Should have totalErrors');
+    assert(typeof json.summary.totalInfo === 'number', 'Should have totalInfo');
+    assert(typeof json.summary.totalPassed === 'number', 'Should have totalPassed');
+    
+    // Verify grade is valid
+    assert(['A', 'B', 'C', 'D', 'F'].includes(json.grade), 'Grade should be A-F');
+    
+    // Verify file structure
+    if (json.files.length > 0) {
+      const file = json.files[0];
+      assert(file.path, 'File should have path');
+      assert(Array.isArray(file.warnings), 'File should have warnings array');
+      assert(Array.isArray(file.errors), 'File should have errors array');
+      assert(Array.isArray(file.info), 'File should have info array');
+      
+      // Verify issue structure if any issues exist
+      const allIssues = [...file.warnings, ...file.errors, ...file.info];
+      if (allIssues.length > 0) {
+        const issue = allIssues[0];
+        assert(issue.message, 'Issue should have message');
+        assert(issue.severity, 'Issue should have severity');
+        assert(['error', 'warning', 'info'].includes(issue.severity), 'Severity should be valid');
+      }
+    }
+  });
+
+  await asyncTest('lint --json: groups issues by severity correctly', async () => {
+    setupTestProject();
+    writeFixture('.cursor/rules/test.mdc', `---
+description: Test rule
+---
+# Test
+data:image/png;base64,abc123
+Always write clean code.`);
+    
+    const cliPath = path.join(__dirname, '..', 'src', 'cli.js');
+    let output;
+    try {
+      output = execSync(`node ${cliPath} lint --json`, { 
+        cwd: TEST_PROJECT,
+        encoding: 'utf-8'
+      });
+    } catch (e) {
+      output = e.stdout;
+    }
+    
+    const json = JSON.parse(output);
+    
+    // This rule should have errors (base64), warnings (vague + no globs), and info (description)
+    assert(json.summary.totalErrors > 0, 'Should have errors');
+    assert(json.summary.totalWarnings > 0, 'Should have warnings');
+    
+    // Find the file with issues
+    const fileWithIssues = json.files.find(f => 
+      f.errors.length > 0 || f.warnings.length > 0 || f.info.length > 0
+    );
+    assert(fileWithIssues, 'Should have a file with issues');
+    
+    // Verify errors are in errors array
+    if (fileWithIssues.errors.length > 0) {
+      assert.strictEqual(fileWithIssues.errors[0].severity, 'error', 'Error array should contain errors');
+    }
+    
+    // Verify warnings are in warnings array
+    if (fileWithIssues.warnings.length > 0) {
+      assert.strictEqual(fileWithIssues.warnings[0].severity, 'warning', 'Warning array should contain warnings');
+    }
+    
+    // Verify info are in info array
+    if (fileWithIssues.info.length > 0) {
+      assert.strictEqual(fileWithIssues.info[0].severity, 'info', 'Info array should contain info');
+    }
+  });
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Test Summary & Cleanup
   // ─────────────────────────────────────────────────────────────────────────────

@@ -416,12 +416,71 @@ async function main() {
     }
 
     if (asJson) {
-      var jsonResults = results.map(function(r) {
-        return { file: path.relative(cwd, r.file) || r.file, issues: r.issues };
+      // Get grade from doctor for JSON output
+      var healthReport = await doctor(cwd);
+      
+      // Group issues by severity for each file
+      var jsonFiles = results.map(function(r) {
+        var warnings = [];
+        var errors = [];
+        var info = [];
+        
+        for (var i = 0; i < r.issues.length; i++) {
+          var issue = r.issues[i];
+          var issueObj = {
+            message: issue.message,
+            line: issue.line || null,
+            severity: issue.severity,
+            hint: issue.hint || null
+          };
+          
+          if (issue.severity === 'error') {
+            errors.push(issueObj);
+          } else if (issue.severity === 'warning') {
+            warnings.push(issueObj);
+          } else {
+            info.push(issueObj);
+          }
+        }
+        
+        return {
+          path: path.relative(cwd, r.file) || r.file,
+          warnings: warnings,
+          errors: errors,
+          info: info
+        };
       });
-      console.log(JSON.stringify(jsonResults, null, 2));
-      var hasJsonErrors = results.some(function(r) { return r.issues.some(function(i) { return i.severity === 'error'; }); });
-      process.exit(hasJsonErrors ? 1 : 0);
+      
+      // Calculate summary
+      var totalWarnings = 0;
+      var totalErrors = 0;
+      var totalInfo = 0;
+      var totalPassed = 0;
+      
+      for (var i = 0; i < results.length; i++) {
+        var hasIssues = false;
+        for (var j = 0; j < results[i].issues.length; j++) {
+          var iss = results[i].issues[j];
+          if (iss.severity === 'error') { totalErrors++; hasIssues = true; }
+          else if (iss.severity === 'warning') { totalWarnings++; hasIssues = true; }
+          else { totalInfo++; hasIssues = true; }
+        }
+        if (!hasIssues) totalPassed++;
+      }
+      
+      var jsonOutput = {
+        files: jsonFiles,
+        summary: {
+          totalWarnings: totalWarnings,
+          totalErrors: totalErrors,
+          totalInfo: totalInfo,
+          totalPassed: totalPassed
+        },
+        grade: healthReport.grade
+      };
+      
+      console.log(JSON.stringify(jsonOutput, null, 2));
+      process.exit(totalErrors > 0 ? 1 : 0);
     }
 
     console.log();
