@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { parseFrontmatter } = require('./frontmatter');
 
 // Rule categories and their common keywords/indicators
 const RULE_CATEGORIES = {
